@@ -888,34 +888,32 @@ function renderCompletion() {
 
 function renderGroupsPagePDF() {
   const steps = getMissionSteps();
-  const sections = buildGroupSections();
-  const doneCount = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
   const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  // Split steps into two columns (left = first half, right = second half)
-  const half = Math.ceil(steps.length / 2);
-  let gi = 0;
+  // Split into two balanced columns by total item count
+  const totalItems = steps.reduce((s, st) => s + st.phase.items.length, 0);
+  const halfItems = Math.ceil(totalItems / 2);
+  let itemsSeen = 0;
   const cols = ["", ""];
 
-  sections.forEach((sec, si) => {
-    const secLabel = getGroupSectionLabel(sections, sec, si);
-    sec.items.forEach(({ step, idx }) => {
-      const col = gi < half ? 0 : 1;
-      const progress = getPhaseProgress(step.phase, state, step.stepId);
-      const isActive = step.stepId === state.selectedStepId;
-      const title = step.label || step.phase.title;
-      const progText = progress.isComplete ? "✓ CONCLUÍDO" : `${progress.done}/${progress.total} itens`;
-      const statusCls = progress.isComplete ? " pdf-grp-done" : (isActive ? " pdf-grp-active" : "");
-      cols[col] += `
-        <button class="pdf-grp-block${statusCls}"
-          data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
-          <div class="pdf-grp-hdr">${escapeHtml(title)}</div>
-          <div class="pdf-grp-prog">${progText}</div>
-        </button>
-      `;
-      gi++;
+  steps.forEach(step => {
+    const col = itemsSeen < halfItems ? 0 : 1;
+    const progress = getPhaseProgress(step.phase, state, step.stepId);
+    const isActive = step.stepId === state.selectedStepId;
+    const title = step.label || step.phase.title;
+    const statusCls = progress.isComplete ? " pdf-sec-done" : (isActive ? " pdf-sec-active" : "");
+
+    cols[col] += `<button class="pdf-sec-hdr${statusCls}" data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">${escapeHtml(title)}</button>`;
+
+    step.phase.items.forEach(item => {
+      const st = getItemStatus(step.phase, item, state, step.stepId);
+      const callCls = item.callout ? " pdf-ov-callout" : "";
+      const sym = st === "completed" ? "✓" : st === "skipped" ? "⚠" : (item.callout ? "●" : "");
+      cols[col] += `<div class="pdf-item-ov ${st}${callCls}"><span class="pdf-ov-sym">${sym}</span><span class="pdf-ov-name">${escapeHtml(item.challenge)}</span><span class="pdf-ov-dots"></span><span class="pdf-ov-resp">${escapeHtml(item.response)}</span></div>`;
     });
+
+    itemsSeen += step.phase.items.length;
   });
 
   return `
@@ -924,14 +922,14 @@ function renderGroupsPagePDF() {
         <div class="pdf-topbar-info">
           <div class="pdf-doc-kicker">AW139 • Rev. ${escapeHtml(checklistData.revision.sourceRevision)}</div>
           <div class="pdf-doc-mission">${escapeHtml(label)}</div>
-          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}${doneCount}/${steps.length} grupos concluídos</div>
+          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}Toque num grupo para abrir</div>
         </div>
         ${renderViewToggle()}
       </div>
       <div class="pdf-body">
         <div class="pdf-two-col">
           <div class="pdf-col">${cols[0]}</div>
-          <div class="pdf-col">${cols[1]}</div>
+          <div class="pdf-col pdf-col-right">${cols[1]}</div>
         </div>
       </div>
       ${renderBottomBar()}
