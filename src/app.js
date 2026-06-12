@@ -1107,6 +1107,7 @@ function renderChecklistPagePDF() {
         <div class="pdf-topbar-info">
           <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(phase.categoryTitle)}</div>
           <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
+          <div class="pdfd-detail-progbar"><div class="pdfd-detail-progfill" style="width:${progress.percent}%"></div></div>
         </div>
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
@@ -1245,7 +1246,9 @@ function bindEvents() {
   document.querySelector("[data-action='nav-home']")?.addEventListener("click", handleHome);
   document.querySelector("[data-action='nav-reset-group']")?.addEventListener("click", handleResetGroupFromBar);
   document.querySelector("[data-action='nav-next-pending']")?.addEventListener("click", handleNextPendingFromBar);
-  document.querySelector("[data-action='nav-groups']")?.addEventListener("click", handleShowGroups);
+  document.querySelectorAll("[data-action='nav-groups']").forEach(btn =>
+    btn.addEventListener("click", handleShowGroups)
+  );
   document.querySelector("[data-action='nav-next']")?.addEventListener("click", handleNextFromBar);
   document.querySelector("[data-action='continue-flight']")?.addEventListener("click", handleContinueFlight);
   document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
