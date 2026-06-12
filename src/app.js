@@ -15,6 +15,7 @@ let settings = loadSettings();
 let currentView = "groups"; // "groups" | "checklist"
 let showingInitial = false;
 let lastAutoScrolledId = null;
+let legPicker = null; // { profile: string, count: number } | null
 
 if (state.profileId && !state.completedAt) {
   currentView = state.selectedStepId ? "checklist" : "groups";
@@ -191,6 +192,7 @@ function selectStep(stepId) {
 }
 
 function handleSelectProfile(profileId, params = {}) {
+  legPicker = null;
   const regInput = document.getElementById("reg-input");
   const registration = (regInput ? regInput.value.trim().toUpperCase() : settings.registration) || "";
 
@@ -225,7 +227,7 @@ function handleSelectProfile(profileId, params = {}) {
   });
 }
 
-function handleHome() { showingInitial = true; render(); }
+function handleHome() { showingInitial = true; legPicker = null; render(); }
 function handleShowGroups() { currentView = "groups"; render(); }
 function handleContinueFlight() {
   showingInitial = false;
@@ -503,6 +505,29 @@ function renderBottomBar() {
   `;
 }
 
+function renderLegButtons(profile, paramKey, max = 5) {
+  if (legPicker?.profile === profile) {
+    const n = legPicker.count;
+    const params = JSON.stringify({ [paramKey]: n });
+    return `
+      <div class="mission-legs-picker">
+        <button class="leg-stepper" data-action="leg-dec" data-profile="${profile}" ${n <= 2 ? "disabled" : ""}>−</button>
+        <span class="leg-stepper-val">${n}</span>
+        <button class="leg-stepper" data-action="leg-inc" data-profile="${profile}" ${n >= max ? "disabled" : ""}>+</button>
+        <button class="leg-btn leg-start" data-action="select-profile" data-profile="${profile}" data-params='${params}'>OK</button>
+      </div>
+    `;
+  }
+  const p1 = JSON.stringify({ [paramKey]: 1 });
+  const cls = profile === "normal_offshore" ? " offshore" : "";
+  return `
+    <div class="mission-legs-btns">
+      <button class="leg-btn${cls}" data-action="select-profile" data-profile="${profile}" data-params='${p1}'>1</button>
+      <button class="leg-btn${cls} leg-more" data-action="expand-legs" data-profile="${profile}">+</button>
+    </div>
+  `;
+}
+
 function renderInitialScreen() {
   const hasFlight = !!state.profileId && !state.completedAt;
   const log = loadFlightLog();
@@ -566,11 +591,7 @@ function renderInitialScreen() {
             <span class="mission-btn-title">NCL + OCL</span>
             <div class="mission-legs">
               <span class="mission-legs-label">Pousos offshore</span>
-              <div class="mission-legs-btns">
-                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":1}'>1</button>
-                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":2}'>2</button>
-                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":3}'>3</button>
-              </div>
+              ${renderLegButtons("normal_offshore", "offshoreLegs", 5)}
             </div>
           </div>
 
@@ -579,10 +600,7 @@ function renderInitialScreen() {
             <span class="mission-btn-title">NCL</span>
             <div class="mission-legs">
               <span class="mission-legs-label">Paradas intermediárias</span>
-              <div class="mission-legs-btns">
-                <button class="leg-btn" data-action="select-profile" data-profile="normal_stops" data-params='{"stops":1}'>1</button>
-                <button class="leg-btn" data-action="select-profile" data-profile="normal_stops" data-params='{"stops":2}'>2</button>
-              </div>
+              ${renderLegButtons("normal_stops", "stops", 4)}
             </div>
           </div>
 
@@ -822,6 +840,30 @@ function bindEvents() {
       const profileId = btn.dataset.profile;
       const params = btn.dataset.params ? JSON.parse(btn.dataset.params) : {};
       handleSelectProfile(profileId, params);
+    });
+  });
+
+  document.querySelectorAll("[data-action='expand-legs']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      legPicker = { profile: btn.dataset.profile, count: 2 };
+      app.innerHTML = renderInitialScreen();
+      bindEvents();
+    });
+  });
+
+  document.querySelectorAll("[data-action='leg-dec']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (legPicker) legPicker = { ...legPicker, count: Math.max(2, legPicker.count - 1) };
+      app.innerHTML = renderInitialScreen();
+      bindEvents();
+    });
+  });
+
+  document.querySelectorAll("[data-action='leg-inc']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (legPicker) legPicker = { ...legPicker, count: Math.min(legPicker.profile === "normal_stops" ? 4 : 5, legPicker.count + 1) };
+      app.innerHTML = renderInitialScreen();
+      bindEvents();
     });
   });
 
