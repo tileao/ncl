@@ -2107,19 +2107,39 @@ button {
 .pdfd-item-tap.skipped .pdfd-resp  { color: #a04010; }
 .pdfd-item-tap.skipped .pdfd-state-sym { color: #d07820; }
 
-/* Special highlight rows as tappable buttons */
+/* Special highlight rows as tappable buttons — keep their PDF colors
+   (the base .pdfd-item-tap sets background:transparent, so these
+   two-class selectors must restore the red/yellow fills) */
 .pdfd-item-tap.pdfd-memory {
+  background: #ff0000;
+  color: #fff;
   min-height: 2.4em;
   align-items: center;
   padding: 0.2em 0.5em;
 }
 
+.pdfd-item-tap.pdfd-memory .pdfd-mem-text { color: #fff; }
+.pdfd-item-tap.pdfd-memory.completed,
+.pdfd-item-tap.pdfd-memory.completed .pdfd-mem-text { color: #fff; }
+.pdfd-item-tap.pdfd-memory.completed .pdfd-state-sym,
+.pdfd-item-tap.pdfd-memory .pdfd-state-sym { color: #fff; }
+.pdfd-item-tap.pdfd-memory:hover,
+.pdfd-item-tap.pdfd-memory:focus-visible { background: #e60000; }
+
 .pdfd-item-tap.pdfd-yellowblock {
+  background: #ffff00;
+  color: #000;
   min-height: unset;
   align-items: flex-start;
   padding: 0.2em 0.5em;
   white-space: normal;
 }
+
+.pdfd-item-tap.pdfd-yellowblock.completed { color: #1a5c30; }
+.pdfd-item-tap.pdfd-yellowblock .pdfd-state-sym { color: #000; align-self: center; }
+.pdfd-item-tap.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a7f4e; }
+.pdfd-item-tap.pdfd-yellowblock:hover,
+.pdfd-item-tap.pdfd-yellowblock:focus-visible { background: #f5f500; }
 
 .pdfd-item-tap.pdfd-cyanwrap { pointer-events: all; }
 
