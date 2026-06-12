@@ -893,28 +893,28 @@ function renderGroupsPagePDF() {
   const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  let listHtml = "";
+  // Split steps into two columns (left = first half, right = second half)
+  const half = Math.ceil(steps.length / 2);
+  let gi = 0;
+  const cols = ["", ""];
+
   sections.forEach((sec, si) => {
     const secLabel = getGroupSectionLabel(sections, sec, si);
-    if (secLabel) {
-      const cls = sec.cat === "offshore" ? "pdf-sec-offshore" : "pdf-sec-normal";
-      listHtml += `<div class="pdf-section-hdr ${cls}">${secLabel}</div>`;
-    }
     sec.items.forEach(({ step, idx }) => {
+      const col = gi < half ? 0 : 1;
       const progress = getPhaseProgress(step.phase, state, step.stepId);
       const isActive = step.stepId === state.selectedStepId;
       const title = step.label || step.phase.title;
-      const statusCls = progress.isComplete ? "pdf-g-complete" : (isActive ? "pdf-g-active" : "");
-      const progressText = progress.isComplete ? "✓" : `${progress.done}/${progress.total}`;
-      listHtml += `
-        <button class="pdf-group-row ${statusCls}"
+      const progText = progress.isComplete ? "✓ CONCLUÍDO" : `${progress.done}/${progress.total} itens`;
+      const statusCls = progress.isComplete ? " pdf-grp-done" : (isActive ? " pdf-grp-active" : "");
+      cols[col] += `
+        <button class="pdf-grp-block${statusCls}"
           data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
-          <span class="pdf-group-num">${idx + 1}.</span>
-          <span class="pdf-group-name">${escapeHtml(title)}</span>
-          <span class="pdf-group-prog">${progressText}</span>
-          <span class="pdf-group-chevron">›</span>
+          <div class="pdf-grp-hdr">${escapeHtml(title)}</div>
+          <div class="pdf-grp-prog">${progText}</div>
         </button>
       `;
+      gi++;
     });
   });
 
@@ -922,14 +922,17 @@ function renderGroupsPagePDF() {
     <div class="pdf-view-page">
       <div class="pdf-topbar">
         <div class="pdf-topbar-info">
-          <div class="pdf-doc-kicker">${escapeHtml(checklistData.aircraft)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)}</div>
+          <div class="pdf-doc-kicker">AW139 • Rev. ${escapeHtml(checklistData.revision.sourceRevision)}</div>
           <div class="pdf-doc-mission">${escapeHtml(label)}</div>
           <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}${doneCount}/${steps.length} grupos concluídos</div>
         </div>
         ${renderViewToggle()}
       </div>
       <div class="pdf-body">
-        <div class="pdf-groups-list">${listHtml}</div>
+        <div class="pdf-two-col">
+          <div class="pdf-col">${cols[0]}</div>
+          <div class="pdf-col">${cols[1]}</div>
+        </div>
       </div>
       ${renderBottomBar()}
     </div>
@@ -944,15 +947,19 @@ function renderChecklistPagePDF() {
   const fi = steps.findIndex(s => s.stepId === step.stepId);
   const progress = getPhaseProgress(step.phase, state, step.stepId);
   const title = step.label || step.phase.title;
+  const reg = state.flightRegistration || settings.registration;
 
   const rows = step.phase.items.map(item => {
     const status = getItemStatus(step.phase, item, state, step.stepId);
-    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : status === "active" ? "›" : "";
+    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
+    const calloutCls = item.callout ? " pdf-item-callout" : "";
+    const bullet = item.callout ? `<span class="pdf-item-bullet">●</span>` : "";
     return `
-      <button class="pdf-row ${status}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
-        <span class="pdf-td-s">${sym}</span>
-        <span class="pdf-td-c">${escapeHtml(item.challenge)}</span>
-        <span class="pdf-td-r">${escapeHtml(item.response)}</span>
+      <button class="pdf-item-row ${status}${calloutCls}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
+        <span class="pdf-item-status">${sym}</span>
+        <span class="pdf-item-name">${bullet}${escapeHtml(item.challenge)}</span>
+        <span class="pdf-item-dots"></span>
+        <span class="pdf-item-response">${escapeHtml(item.response)}</span>
       </button>
     `;
   }).join("");
@@ -980,13 +987,18 @@ function renderChecklistPagePDF() {
         ${renderViewToggle()}
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
-        <div class="pdf-table-card">
-          <div class="pdf-table-hdr">
+        <div class="pdf-section-block">
+          <div class="pdf-section-title">
             <span>${escapeHtml(title)}</span>
-            <span>${progress.done}/${progress.total}</span>
+            <span class="pdf-section-count">${progress.done}/${progress.total}</span>
           </div>
           <div class="pdf-prog-bar"><div class="pdf-prog-fill" style="width:${progress.percent}%"></div></div>
-          ${rows}
+          <div class="pdf-items-list">${rows}</div>
+        </div>
+        <div class="pdf-footer-strip">
+          REVISÃO: ${escapeHtml(checklistData.revision.sourceRevision)} &nbsp;|&nbsp;
+          ${escapeHtml(checklistData.revision.effectiveDate)} &nbsp;|&nbsp;
+          ${escapeHtml(checklistData.revision.source)}${reg ? ` &nbsp;|&nbsp; ${escapeHtml(reg)}` : ""}
         </div>
       </div>
       ${completionBanner}
