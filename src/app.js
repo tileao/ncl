@@ -16,8 +16,8 @@ let currentView = "groups"; // "groups" | "checklist"
 let showingInitial = false;
 let lastAutoScrolledId = null;
 
-if (state.flightType && !state.completedAt) {
-  currentView = state.selectedPhaseId ? "checklist" : "groups";
+if (state.profileId && !state.completedAt) {
+  currentView = state.selectedStepId ? "checklist" : "groups";
 }
 
 // ─── Utilities ─────────────────────────────────────────────────────────────
@@ -27,20 +27,6 @@ function escapeHtml(v = "") {
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function getPhaseIndex(id) {
-  return checklistData.phases.findIndex(p => p.id === id);
-}
-
-function getFilteredPhases() {
-  if (!state.flightType) return checklistData.phases;
-  return checklistData.phases.filter(p => p.categoryId === state.flightType);
-}
-
-function getValidPhaseId(id) {
-  if (!id) return null;
-  return getPhaseIndex(id) >= 0 ? id : null;
 }
 
 function formatDuration(ms) {
@@ -68,48 +54,151 @@ const ICON_SEEK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" s
 const ICON_GRID = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`;
 const ICON_NEXT = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>`;
 
-// ─── State ─────────────────────────────────────────────────────────────────
+// ─── Mission profiles ───────────────────────────────────────────────────────
 
-state.selectedPhaseId = getValidPhaseId(state.selectedPhaseId);
+function buildMissionSteps(profileId, params = {}) {
+  const all = checklistData.phases;
+  const byId = id => all.find(p => p.id === id);
+  const step = (id, phaseId, label = null) => ({ stepId: id, phaseId, phase: byId(phaseId), label });
 
-const selectedPhase = () => {
-  if (state.selectedPhaseId) {
-    const found = checklistData.phases.find(p => p.id === state.selectedPhaseId);
+  const DEP = [
+    "normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks",
+    "normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration",
+    "normal-taxing", "normal-before-take-off", "normal-after-take-off"
+  ];
+  const CRUISE = "normal-cruise";
+  const N_INTERM = [
+    "normal-before-descent", "normal-before-landing", "normal-final-approach", "normal-after-landing"
+  ];
+  const N_IDEP = ["normal-before-take-off", "normal-after-take-off"];
+  const N_ARR = [
+    "normal-before-descent", "normal-before-landing", "normal-final-approach",
+    "normal-after-landing", "normal-engines-shut-down", "normal-after-rotor-stops"
+  ];
+  const O_ARR = [
+    "offshore-before-descent", "offshore-before-landing", "offshore-traffic-pattern",
+    "offshore-final-approach", "offshore-after-landing"
+  ];
+  const O_DEP = ["offshore-before-takeoff", "offshore-after-take-off"];
+
+  const steps = [];
+
+  if (profileId === "normal") {
+    all.filter(p => p.categoryId === "normal").forEach((p, i) => steps.push(step(`n${i}`, p.id)));
+
+  } else if (profileId === "offshore") {
+    all.filter(p => p.categoryId === "offshore").forEach((p, i) => steps.push(step(`o${i}`, p.id)));
+
+  } else if (profileId === "normal_offshore") {
+    const legs = params.offshoreLegs || 1;
+    DEP.forEach((id, i) => steps.push(step(`no_d${i}`, id)));
+    for (let l = 0; l < legs; l++) {
+      const cLabel = legs === 1 ? "CRUISE — IDA" : `CRUISE — IDA ${l + 1}`;
+      steps.push(step(`no_ci${l}`, CRUISE, cLabel));
+      O_ARR.forEach((id, i) => steps.push(step(`no_oa${l}_${i}`, id)));
+      O_DEP.forEach((id, i) => steps.push(step(`no_od${l}_${i}`, id)));
+    }
+    steps.push(step(`no_cr`, CRUISE, "CRUISE — RETORNO"));
+    N_ARR.forEach((id, i) => steps.push(step(`no_a${i}`, id)));
+
+  } else if (profileId === "normal_stops") {
+    const stops = params.stops || 1;
+    DEP.forEach((id, i) => steps.push(step(`ns_d${i}`, id)));
+    for (let s = 0; s < stops; s++) {
+      const cLabel = stops === 1 ? "CRUISE" : `CRUISE — TRECHO ${s + 1}`;
+      steps.push(step(`ns_c${s}`, CRUISE, cLabel));
+      N_INTERM.forEach((id, i) => steps.push(step(`ns_ia${s}_${i}`, id)));
+      N_IDEP.forEach((id, i) => steps.push(step(`ns_id${s}_${i}`, id)));
+    }
+    steps.push(step(`ns_cr`, CRUISE, "CRUISE — RETORNO"));
+    N_ARR.forEach((id, i) => steps.push(step(`ns_a${i}`, id)));
+  }
+
+  return steps;
+}
+
+function getMissionSteps() {
+  if (!state.profileId) return [];
+  return buildMissionSteps(state.profileId, state.profileParams || {});
+}
+
+function getProfileLabelFor(profileId, params = {}) {
+  if (profileId === "normal") return "NORMAL CHECK LIST";
+  if (profileId === "offshore") return "OFFSHORE CHECK LIST";
+  if (profileId === "normal_offshore") {
+    const legs = params.offshoreLegs || 1;
+    return legs === 1 ? "NCL + OCL" : `NCL + OCL (${legs}× offshore)`;
+  }
+  if (profileId === "normal_stops") {
+    const stops = params.stops || 1;
+    return stops === 1 ? "NORMAL c/ PARADA" : `NORMAL c/ ${stops} PARADAS`;
+  }
+  return "CHECK LIST";
+}
+
+function getProfileLabel() {
+  return getProfileLabelFor(state.profileId, state.profileParams || {});
+}
+
+function getLogTypeLabel(entry) {
+  if (!entry.profileId) {
+    return entry.flightType === "offshore" ? "OCL" : "NCL";
+  }
+  if (entry.profileId === "offshore") return "OCL";
+  if (entry.profileId === "normal_offshore") {
+    const legs = entry.profileParams?.offshoreLegs || 1;
+    return legs > 1 ? `NCL+OCL ×${legs}` : "NCL+OCL";
+  }
+  if (entry.profileId === "normal_stops") {
+    const stops = entry.profileParams?.stops || 1;
+    return stops > 1 ? `NCL+${stops}P` : "NCL+PAR";
+  }
+  return "NCL";
+}
+
+// ─── State helpers ──────────────────────────────────────────────────────────
+
+const selectedStep = () => {
+  const steps = getMissionSteps();
+  if (!steps.length) return null;
+  if (state.selectedStepId) {
+    const found = steps.find(s => s.stepId === state.selectedStepId);
     if (found) return found;
   }
-  return getFilteredPhases()[0] || null;
+  return steps[0] || null;
 };
 
 function persist(nextState) {
-  state = saveState({ ...nextState, selectedPhaseId: getValidPhaseId(nextState.selectedPhaseId) });
+  state = saveState(nextState);
   render();
 }
 
 // ─── Navigation ────────────────────────────────────────────────────────────
 
-function selectPhase(phaseId) {
-  const phase = checklistData.phases.find(p => p.id === phaseId);
-  if (!phase) return;
+function selectStep(stepId) {
+  const steps = getMissionSteps();
+  const step = steps.find(s => s.stepId === stepId);
+  if (!step) return;
   currentView = "checklist";
   lastAutoScrolledId = null;
-  const active = getNextPendingItem(phase, state);
+  const active = getNextPendingItem(step.phase, state, stepId);
   persist({
     ...state,
-    selectedPhaseId: phase.id,
-    activeItemId: active?.id || phase.items[0]?.id || null,
+    selectedStepId: stepId,
+    activeItemId: active?.id || step.phase.items[0]?.id || null,
     flightSessionStartedAt: state.flightSessionStartedAt || new Date().toISOString()
   });
 }
 
-function handleSelectFlightType(type) {
+function handleSelectProfile(profileId, params = {}) {
   const regInput = document.getElementById("reg-input");
   const registration = (regInput ? regInput.value.trim().toUpperCase() : settings.registration) || "";
 
-  const hasProgress = state.flightType &&
+  const hasProgress = state.profileId &&
     Object.values(state.completed || {}).some(a => a.length > 0);
   if (hasProgress) {
     const ok = window.confirm(
-      `Iniciar novo voo ${type === "offshore" ? "Offshore" : "Normal"}? O progresso atual será perdido.`
+      `Iniciar ${getProfileLabelFor(profileId, params)}? O progresso atual será perdido.`
     );
     if (!ok) return;
   }
@@ -120,17 +209,18 @@ function handleSelectFlightType(type) {
   currentView = "groups";
   lastAutoScrolledId = null;
 
-  const phases = checklistData.phases.filter(p => p.categoryId === type);
-  const first = phases[0];
+  const steps = buildMissionSteps(profileId, params);
+  const first = steps[0];
   persist({
-    ...state,
-    flightType: type,
+    profileId,
+    profileParams: params,
     flightRegistration: registration,
-    completedAt: null,
-    selectedPhaseId: first?.id || null,
-    activeItemId: first?.items[0]?.id || null,
+    selectedStepId: first?.stepId || null,
+    activeItemId: first?.phase.items[0]?.id || null,
     completed: {},
     skipped: {},
+    completedAt: null,
+    lastUpdatedAt: null,
     flightSessionStartedAt: new Date().toISOString()
   });
 }
@@ -139,15 +229,15 @@ function handleHome() { showingInitial = true; render(); }
 function handleShowGroups() { currentView = "groups"; render(); }
 function handleContinueFlight() {
   showingInitial = false;
-  currentView = state.selectedPhaseId ? "checklist" : "groups";
+  currentView = state.selectedStepId ? "checklist" : "groups";
   render();
 }
 
 function handleNextFromBar() {
   if (currentView === "groups") {
-    const filtered = getFilteredPhases();
-    const next = filtered.find(p => !getPhaseProgress(p, state).isComplete);
-    if (next) { selectPhase(next.id); return; }
+    const steps = getMissionSteps();
+    const next = steps.find(s => !getPhaseProgress(s.phase, state, s.stepId).isComplete);
+    if (next) { selectStep(next.stepId); return; }
     if (isMissionComplete()) { handleCompleteFlight(); return; }
     return;
   }
@@ -167,14 +257,14 @@ function handleNextPendingFromBar() {
 // ─── Checklist handlers ────────────────────────────────────────────────────
 
 function isMissionComplete() {
-  const f = getFilteredPhases();
-  return f.length > 0 && f.every(p => getPhaseProgress(p, state).isComplete);
+  const steps = getMissionSteps();
+  return steps.length > 0 && steps.every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
 }
 
 function getMissionStats() {
-  const f = getFilteredPhases();
-  const totalGroups = f.length;
-  const totalItems = f.reduce((s, p) => s + p.items.filter(i => i.required !== false).length, 0);
+  const steps = getMissionSteps();
+  const totalGroups = steps.length;
+  const totalItems = steps.reduce((s, step) => s + step.phase.items.filter(i => i.required !== false).length, 0);
   const startedAt = state.flightSessionStartedAt;
   const completedAt = new Date().toISOString();
   const durationMs = startedAt ? new Date(completedAt) - new Date(startedAt) : 0;
@@ -186,7 +276,9 @@ function handleCompleteFlight() {
   const log = loadFlightLog();
   log.unshift({
     id: stats.completedAt,
-    flightType: state.flightType,
+    profileId: state.profileId,
+    profileParams: state.profileParams || {},
+    flightType: state.profileId === "offshore" ? "offshore" : "normal",
     registration: state.flightRegistration || settings.registration || "",
     startedAt: stats.startedAt,
     completedAt: stats.completedAt,
@@ -201,31 +293,36 @@ function handleCompleteFlight() {
 }
 
 function handleToggleItem(id) {
-  persist(toggleItem(selectedPhase(), id, state));
+  const step = selectedStep();
+  if (!step) return;
+  persist(toggleItem(step.phase, id, state, step.stepId));
 }
 
 function handleSkipItem(id) {
   const ok = window.confirm("Marcar este item como ATENÇÃO / NÃO CUMPRIDO? Ele continuará impedindo o avanço até ser cumprido.");
   if (!ok) return;
-  persist(markSkipped(selectedPhase(), id, state));
+  const step = selectedStep();
+  if (!step) return;
+  persist(markSkipped(step.phase, id, state, step.stepId));
 }
 
 function handleResetPhase() {
-  const phase = selectedPhase();
-  const ok = window.confirm(`Resetar o grupo ${phase.title}?`);
+  const step = selectedStep();
+  if (!step) return;
+  const ok = window.confirm(`Resetar o grupo ${step.label || step.phase.title}?`);
   if (!ok) return;
   lastAutoScrolledId = null;
-  persist(resetPhase(phase, state));
+  persist(resetPhase(step.phase, state, step.stepId));
 }
 
 function handleResetAll() {
   const ok = window.confirm("Resetar todo o progresso e iniciar novo voo?");
   if (!ok) return;
-  showingInitial = false;
+  showingInitial = true;
   currentView = "groups";
   lastAutoScrolledId = null;
   state = resetAllState();
-  persist(state);
+  render();
 }
 
 function handleReviewChecklist() {
@@ -251,25 +348,19 @@ function scrollToItem(id) {
 }
 
 function handleGoNextPending() {
-  const phase = selectedPhase();
-  const next = getNextPendingItem(phase, state);
+  const step = selectedStep();
+  if (!step) return;
+  const next = getNextPendingItem(step.phase, state, step.stepId);
   if (!next) return;
-  persist({ ...state, selectedPhaseId: phase.id, activeItemId: next.id });
+  persist({ ...state, selectedStepId: step.stepId, activeItemId: next.id });
   scrollToItem(next.id);
 }
 
-function handlePreviousGroup() {
-  const f = getFilteredPhases();
-  const idx = f.findIndex(p => p.id === state.selectedPhaseId);
-  if (idx <= 0) return;
-  selectPhase(f[idx - 1].id);
-}
-
 function handleNextGroup() {
-  const phase = selectedPhase();
-  if (!phase) return;
-  const progress = getPhaseProgress(phase, state);
-  const nextPending = getNextPendingItem(phase, state);
+  const step = selectedStep();
+  if (!step) return;
+  const progress = getPhaseProgress(step.phase, state, step.stepId);
+  const nextPending = getNextPendingItem(step.phase, state, step.stepId);
 
   if (!progress.isComplete && checklistData.flowRules.blockNextGroupUntilComplete) {
     if (nextPending) {
@@ -282,11 +373,11 @@ function handleNextGroup() {
     return;
   }
 
-  const f = getFilteredPhases();
-  const idx = f.findIndex(p => p.id === phase.id);
-  const next = f[idx + 1];
+  const steps = getMissionSteps();
+  const idx = steps.findIndex(s => s.stepId === step.stepId);
+  const next = steps[idx + 1];
   if (!next) { handleCompleteFlight(); return; }
-  selectPhase(next.id);
+  selectStep(next.stepId);
 }
 
 function getStatusLabel(s) {
@@ -300,25 +391,36 @@ function generateFlightPDF(flightId) {
   const entry = log.find(e => e.id === flightId);
   if (!entry) return;
 
-  const filtered = checklistData.phases.filter(p => p.categoryId === entry.flightType);
+  let steps;
+  if (entry.profileId) {
+    steps = buildMissionSteps(entry.profileId, entry.profileParams || {});
+  } else {
+    steps = checklistData.phases
+      .filter(p => p.categoryId === entry.flightType)
+      .map((p, i) => ({ stepId: `${entry.flightType[0]}${i}`, phaseId: p.id, phase: p, label: null }));
+  }
+
   const doneMap = entry.completed || {};
   const skipMap = entry.skipped || {};
+  const typeLabel = entry.profileId
+    ? getProfileLabelFor(entry.profileId, entry.profileParams || {})
+    : (entry.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST");
 
-  const groupsHTML = filtered.map(phase => {
-    const items = phase.items.filter(i => i.required !== false);
-    const done = new Set(doneMap[phase.id] || []);
-    const skip = new Set(skipMap[phase.id] || []);
+  const groupsHTML = steps.map(step => {
+    const items = step.phase.items.filter(i => i.required !== false);
+    const done = new Set(doneMap[step.stepId] || []);
+    const skip = new Set(skipMap[step.stepId] || []);
     const cnt = items.filter(i => done.has(i.id)).length;
+    const title = step.label ? `${step.phase.title} — ${step.label}` : step.phase.title;
     const rows = items.map(item => {
       const isDone = done.has(item.id), isSkip = skip.has(item.id);
       const ic = isDone ? "✓" : (isSkip ? "⚠" : "○");
       const cl = isDone ? "done" : (isSkip ? "attn" : "pend");
       return `<tr class="${cl}"><td class="ic">${ic}</td><td class="ch">${item.challenge}</td><td class="rs">${item.response}</td></tr>`;
     }).join("");
-    return `<div class="grp"><div class="gh"><span>${phase.title}</span><span>${cnt}/${items.length}</span></div><table><tbody>${rows}</tbody></table></div>`;
+    return `<div class="grp"><div class="gh"><span>${title}</span><span>${cnt}/${items.length}</span></div><table><tbody>${rows}</tbody></table></div>`;
   }).join("");
 
-  const typeLabel = entry.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>AW139 ${typeLabel} — ${entry.registration || "—"} — ${formatDate(entry.completedAt)}</title>
 <style>
@@ -347,7 +449,7 @@ td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-hei
   <button onclick="window.close()">✕ Fechar</button>
 </div>
 <div class="hdr">
-  <div class="htitle">AW139 ${typeLabel} CHECK LIST</div>
+  <div class="htitle">AW139 ${typeLabel}</div>
   <div class="hmeta">
     <span><strong>Matrícula:</strong> ${entry.registration || "—"}</span>
     <span><strong>Data:</strong> ${formatDate(entry.completedAt)}</span>
@@ -368,12 +470,12 @@ td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-hei
 // ─── Rendering ────────────────────────────────────────────────────────────
 
 function renderBottomBar() {
-  const f = getFilteredPhases();
-  const completedGroups = f.filter(p => getPhaseProgress(p, state).isComplete).length;
+  const steps = getMissionSteps();
+  const completedGroups = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
   const isGroupsView = currentView === "groups";
   const onChecklist = currentView === "checklist";
-  const phase = onChecklist ? selectedPhase() : null;
-  const hasNextPending = onChecklist && phase ? !!getNextPendingItem(phase, state) : false;
+  const step = onChecklist ? selectedStep() : null;
+  const hasNextPending = onChecklist && step ? !!getNextPendingItem(step.phase, state, step.stepId) : false;
 
   return `
     <nav class="bottom-bar">
@@ -395,23 +497,22 @@ function renderBottomBar() {
       </button>
       <button class="bottom-btn bb-next" data-action="nav-next" title="Próximo grupo">
         ${ICON_NEXT}
-        <span class="bottom-label">${completedGroups}/${f.length}</span>
+        <span class="bottom-label">${completedGroups}/${steps.length}</span>
       </button>
     </nav>
   `;
 }
 
 function renderInitialScreen() {
-  const normalCount = checklistData.phases.filter(p => p.categoryId === "normal").length;
-  const offshoreCount = checklistData.phases.filter(p => p.categoryId === "offshore").length;
-  const hasFlight = !!state.flightType && !state.completedAt;
+  const hasFlight = !!state.profileId && !state.completedAt;
   const log = loadFlightLog();
 
   const historyRows = log.slice(0, 10).map(entry => {
-    const typeLabel = entry.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
+    const typeLabel = getLogTypeLabel(entry);
+    const isOff = entry.profileId === "offshore" || entry.profileId === "normal_offshore";
     return `
       <div class="history-entry">
-        <span class="history-type ${entry.flightType === "offshore" ? "offshore" : ""}">${typeLabel}</span>
+        <span class="history-type ${isOff ? "offshore" : ""}">${typeLabel}</span>
         <span class="history-reg">${escapeHtml(entry.registration || "—")}</span>
         <span class="history-date">${formatDate(entry.completedAt)}</span>
         <span class="history-dur">${formatDuration(entry.durationMs)}</span>
@@ -441,22 +542,50 @@ function renderInitialScreen() {
 
         ${hasFlight ? `
           <button class="continue-flight-btn" data-action="continue-flight">
-            ← Continuar ${state.flightType === "offshore" ? "Offshore" : "Normal"} Check List
+            ← Continuar ${escapeHtml(getProfileLabel())}
           </button>
         ` : ""}
 
         <div class="initial-section-label">Iniciar voo</div>
         <div class="mission-grid">
-          <button class="mission-btn" data-action="select-flight-type" data-flight-type="normal">
+
+          <button class="mission-btn" data-action="select-profile" data-profile="normal">
             <span class="mission-btn-label">Normal</span>
             <span class="mission-btn-title">NCL</span>
-            <span class="mission-btn-desc">${normalCount} grupos</span>
+            <span class="mission-btn-desc">16 grupos</span>
           </button>
-          <button class="mission-btn offshore" data-action="select-flight-type" data-flight-type="offshore">
+
+          <button class="mission-btn offshore" data-action="select-profile" data-profile="offshore">
             <span class="mission-btn-label">Offshore</span>
             <span class="mission-btn-title">OCL</span>
-            <span class="mission-btn-desc">${offshoreCount} grupos</span>
+            <span class="mission-btn-desc">7 grupos</span>
           </button>
+
+          <div class="mission-btn mission-multi offshore">
+            <span class="mission-btn-label">Normal + Offshore</span>
+            <span class="mission-btn-title">NCL + OCL</span>
+            <div class="mission-legs">
+              <span class="mission-legs-label">Pousos offshore</span>
+              <div class="mission-legs-btns">
+                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":1}'>1</button>
+                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":2}'>2</button>
+                <button class="leg-btn offshore" data-action="select-profile" data-profile="normal_offshore" data-params='{"offshoreLegs":3}'>3</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mission-btn mission-multi">
+            <span class="mission-btn-label">Normal c/ Paradas</span>
+            <span class="mission-btn-title">NCL</span>
+            <div class="mission-legs">
+              <span class="mission-legs-label">Paradas intermediárias</span>
+              <div class="mission-legs-btns">
+                <button class="leg-btn" data-action="select-profile" data-profile="normal_stops" data-params='{"stops":1}'>1</button>
+                <button class="leg-btn" data-action="select-profile" data-profile="normal_stops" data-params='{"stops":2}'>2</button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         ${log.length > 0 ? `
@@ -473,20 +602,21 @@ function renderInitialScreen() {
 }
 
 function renderGroupsPage() {
-  const f = getFilteredPhases();
-  const doneCount = f.filter(p => getPhaseProgress(p, state).isComplete).length;
-  const label = state.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST";
+  const steps = getMissionSteps();
+  const doneCount = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
+  const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  const cards = f.map((phase, idx) => {
-    const progress = getPhaseProgress(phase, state);
+  const cards = steps.map((step, idx) => {
+    const progress = getPhaseProgress(step.phase, state, step.stepId);
     const isComplete = progress.isComplete;
-    const isActive = phase.id === state.selectedPhaseId;
+    const isActive = step.stepId === state.selectedStepId;
+    const title = step.label || step.phase.title;
     return `
       <button class="group-card ${isComplete ? "complete" : ""} ${isActive ? "active-group" : ""}"
-        data-action="select-phase" data-phase-id="${escapeHtml(phase.id)}">
+        data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
         <div class="group-card-num">${idx + 1}</div>
-        <div class="group-card-title">${escapeHtml(phase.title)}</div>
+        <div class="group-card-title">${escapeHtml(title)}</div>
         <div class="group-card-footer">
           <span class="group-card-progress">${progress.done}/${progress.total}</span>
           <div class="group-card-bar"><div class="group-card-fill" style="width:${progress.percent}%"></div></div>
@@ -501,7 +631,7 @@ function renderGroupsPage() {
         <div class="brand-title">${escapeHtml(label)}</div>
         <div class="groups-meta">
           ${reg ? `<span class="groups-reg">${escapeHtml(reg)}</span> • ` : ""}
-          ${doneCount}/${f.length} grupos concluídos
+          ${doneCount}/${steps.length} grupos concluídos
         </div>
       </header>
       <div class="groups-grid">${cards}</div>
@@ -517,23 +647,21 @@ function renderTags(item) {
 }
 
 function renderChecklist() {
-  const phase = selectedPhase();
-  if (!phase) return `<div class="empty-state">Nenhuma checklist carregada.</div>`;
+  const step = selectedStep();
+  if (!step) return `<div class="empty-state">Nenhuma checklist carregada.</div>`;
 
-  const f = getFilteredPhases();
-  const fi = f.findIndex(p => p.id === phase.id);
-  const inSeq = fi !== -1;
-  const progress = getPhaseProgress(phase, state);
-  const nextPending = getNextPendingItem(phase, state);
-  const groupKicker = inSeq
-    ? `Grupo ${fi + 1}/${f.length} • ${escapeHtml(phase.categoryTitle)} • PDF p.${escapeHtml(phase.pdfPage)}`
-    : `Fora da sequência • ${escapeHtml(phase.categoryTitle)} • PDF p.${escapeHtml(phase.pdfPage)}`;
+  const steps = getMissionSteps();
+  const fi = steps.findIndex(s => s.stepId === step.stepId);
+  const progress = getPhaseProgress(step.phase, state, step.stepId);
+  const nextPending = getNextPendingItem(step.phase, state, step.stepId);
+  const title = step.label || step.phase.title;
+  const groupKicker = `Grupo ${fi + 1}/${steps.length} • ${escapeHtml(step.phase.categoryTitle)} • PDF p.${escapeHtml(String(step.phase.pdfPage))}`;
   const resumeText = nextPending
     ? `Próximo item pendente: <strong>${escapeHtml(nextPending.challenge)}</strong> — ${escapeHtml(nextPending.response)}`
     : `Grupo completo. Conferir visualmente e avançar para o próximo grupo.`;
 
-  const rows = phase.items.map((item, i) => {
-    const status = getItemStatus(phase, item, state);
+  const rows = step.phase.items.map((item, i) => {
+    const status = getItemStatus(step.phase, item, state, step.stepId);
     const symbol = status === "completed" ? "✓" : String(i + 1).padStart(2, "0");
     const note = item.note ? `<span class="item-note">${escapeHtml(item.note)}</span>` : "";
     return `
@@ -556,7 +684,7 @@ function renderChecklist() {
         <div class="checklist-header-main">
           <div>
             <div class="page-kicker">${groupKicker}</div>
-            <h2 class="card-title">${escapeHtml(phase.title)}</h2>
+            <h2 class="card-title">${escapeHtml(title)}</h2>
           </div>
           <div class="progress-block">
             <div class="progress-count">${progress.done}/${progress.total}</div>
@@ -579,8 +707,8 @@ function renderChecklist() {
 
 function renderChecklistPage() {
   const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
-  const flightTypeLabel = state.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
   const reg = state.flightRegistration || settings.registration;
+  const label = getProfileLabel();
 
   return `
     <main class="app-shell checklist-view">
@@ -588,7 +716,7 @@ function renderChecklistPage() {
         <div class="brand">
           <div class="brand-title">${escapeHtml(checklistData.title)}</div>
           <div class="brand-subtitle">
-            ${reg ? `${escapeHtml(reg)} • ` : ""}PWA offline • ${escapeHtml(flightTypeLabel)}
+            ${reg ? `${escapeHtml(reg)} • ` : ""}${escapeHtml(label)}
           </div>
         </div>
         <div class="badge ${statusClass}">${escapeHtml(checklistData.contentStatus)}</div>
@@ -602,20 +730,21 @@ function renderChecklistPage() {
 }
 
 function renderCompletion() {
-  const f = getFilteredPhases();
-  const totalGroups = f.length;
-  const totalItems = f.reduce((s, p) => s + p.items.filter(i => i.required !== false).length, 0);
+  const steps = getMissionSteps();
+  const totalGroups = steps.length;
+  const totalItems = steps.reduce((s, step) => s + step.phase.items.filter(i => i.required !== false).length, 0);
   const durationMs = state.flightSessionStartedAt && state.completedAt
     ? new Date(state.completedAt) - new Date(state.flightSessionStartedAt) : 0;
-  const missionTitle = state.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST";
+  const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
   const log = loadFlightLog();
   const currentEntry = log[0];
 
   const logRows = log.slice(0, 6).map((entry, i) => {
-    const typeLabel = entry.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
+    const typeLabel = getLogTypeLabel(entry);
+    const isOff = entry.profileId === "offshore" || entry.profileId === "normal_offshore";
     return `
-      <div class="log-entry ${i === 0 ? "current-entry" : ""} ${entry.flightType === "offshore" ? "offshore-entry" : ""}">
+      <div class="log-entry ${i === 0 ? "current-entry" : ""} ${isOff ? "offshore-entry" : ""}">
         <span class="log-type">${typeLabel}</span>
         <span class="log-date">${formatDate(entry.completedAt)}</span>
         <span class="log-duration">${formatDuration(entry.durationMs)}</span>
@@ -631,7 +760,7 @@ function renderCompletion() {
         <div class="completion-icon">✓</div>
         <h1 class="completion-title">VOO CONCLUÍDO</h1>
         <div class="completion-meta">
-          ${reg ? `<strong>${escapeHtml(reg)}</strong> • ` : ""}${escapeHtml(missionTitle)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${formatDate(state.completedAt)}
+          ${reg ? `<strong>${escapeHtml(reg)}</strong> • ` : ""}${escapeHtml(label)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${formatDate(state.completedAt)}
         </div>
         <div class="stats-grid">
           <div class="stat-card">
@@ -666,7 +795,7 @@ function renderCompletion() {
 // ─── Main render ─────────────────────────────────────────────────────────────
 
 function render() {
-  if (!state.flightType || showingInitial) {
+  if (!state.profileId || showingInitial) {
     app.innerHTML = renderInitialScreen();
     bindEvents();
     return;
@@ -684,8 +813,16 @@ function render() {
 // ─── Events ──────────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  document.querySelectorAll("[data-action='select-phase']").forEach(btn => {
-    btn.addEventListener("click", () => selectPhase(btn.dataset.phaseId));
+  document.querySelectorAll("[data-action='select-step']").forEach(btn => {
+    btn.addEventListener("click", () => selectStep(btn.dataset.stepId));
+  });
+
+  document.querySelectorAll("[data-action='select-profile']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const profileId = btn.dataset.profile;
+      const params = btn.dataset.params ? JSON.parse(btn.dataset.params) : {};
+      handleSelectProfile(profileId, params);
+    });
   });
 
   document.querySelectorAll("[data-action='toggle-item']").forEach(btn => {
@@ -728,10 +865,6 @@ function bindEvents() {
       if (didSwipe) { e.preventDefault(); didSwipe = false; return; }
       handleToggleItem(id);
     });
-  });
-
-  document.querySelectorAll("[data-action='select-flight-type']").forEach(btn => {
-    btn.addEventListener("click", () => handleSelectFlightType(btn.dataset.flightType));
   });
 
   document.querySelectorAll("[data-action='export-pdf']").forEach(btn => {
