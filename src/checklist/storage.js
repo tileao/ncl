@@ -10,6 +10,7 @@ const defaultState = {
   activeItemId: null,
   completed: {},
   skipped: {},
+  completedTimestamps: {},
   completedAt: null,
   lastUpdatedAt: null,
   flightSessionStartedAt: null
