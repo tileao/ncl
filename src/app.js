@@ -689,19 +689,45 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-action='toggle-item']").forEach(btn => {
-    let timer = null, triggered = false, startY = 0;
+    let x0 = 0, y0 = 0, didSwipe = false;
     const id = btn.dataset.itemId;
-    const cancel = () => window.clearTimeout(timer);
+
     btn.addEventListener("pointerdown", e => {
-      triggered = false;
-      startY = e.clientY;
-      timer = window.setTimeout(() => { triggered = true; handleSkipItem(id); }, 700);
+      x0 = e.clientX; y0 = e.clientY; didSwipe = false;
+      btn.style.transition = "none";
     });
-    btn.addEventListener("pointermove", e => { if (Math.abs(e.clientY - startY) > 8) cancel(); });
-    btn.addEventListener("pointerup",     cancel);
-    btn.addEventListener("pointerleave",  cancel);
-    btn.addEventListener("pointercancel", cancel);
-    btn.addEventListener("click", e => { if (triggered) { e.preventDefault(); return; } handleToggleItem(id); });
+
+    btn.addEventListener("pointermove", e => {
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (dx < 0 && Math.abs(dx) > Math.abs(dy)) {
+        const t = Math.min(Math.abs(dx), 100);
+        btn.style.transform = `translateX(${-t}px)`;
+        btn.style.background = `rgba(255,92,92,${(t / 100) * 0.28})`;
+      }
+    });
+
+    const release = e => {
+      const dx = (e.clientX ?? x0) - x0;
+      const dy = (e.clientY ?? y0) - y0;
+      btn.style.transition = "transform 220ms ease, background 220ms ease";
+      btn.style.transform = "";
+      btn.style.background = "";
+      if (dx < -60 && Math.abs(dy) < 50) {
+        didSwipe = true;
+        handleSkipItem(id);
+      }
+    };
+
+    btn.addEventListener("pointerup", release);
+    btn.addEventListener("pointercancel", () => {
+      btn.style.transition = "transform 220ms ease, background 220ms ease";
+      btn.style.transform = "";
+      btn.style.background = "";
+    });
+    btn.addEventListener("click", e => {
+      if (didSwipe) { e.preventDefault(); didSwipe = false; return; }
+      handleToggleItem(id);
+    });
   });
 
   document.querySelectorAll("[data-action='select-flight-type']").forEach(btn => {
