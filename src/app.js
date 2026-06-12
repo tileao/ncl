@@ -689,14 +689,18 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-action='toggle-item']").forEach(btn => {
-    let timer = null, triggered = false;
+    let timer = null, triggered = false, startY = 0;
     const id = btn.dataset.itemId;
-    btn.addEventListener("pointerdown", () => {
+    const cancel = () => window.clearTimeout(timer);
+    btn.addEventListener("pointerdown", e => {
       triggered = false;
+      startY = e.clientY;
       timer = window.setTimeout(() => { triggered = true; handleSkipItem(id); }, 700);
     });
-    btn.addEventListener("pointerup",    () => window.clearTimeout(timer));
-    btn.addEventListener("pointerleave", () => window.clearTimeout(timer));
+    btn.addEventListener("pointermove", e => { if (Math.abs(e.clientY - startY) > 8) cancel(); });
+    btn.addEventListener("pointerup",     cancel);
+    btn.addEventListener("pointerleave",  cancel);
+    btn.addEventListener("pointercancel", cancel);
     btn.addEventListener("click", e => { if (triggered) { e.preventDefault(); return; } handleToggleItem(id); });
   });
 
