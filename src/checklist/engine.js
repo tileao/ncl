@@ -28,20 +28,26 @@ export function getItemStatus(phase, item, state, stateKey) {
   return "pending";
 }
 
-export function toggleItem(phase, itemId, state, stateKey) {
+export function toggleItem(phase, itemId, state, stateKey, timestamp) {
   const key = stateKey !== undefined ? stateKey : phase.id;
   const current = new Set(state.completed?.[key] || []);
   const skipped = new Set(state.skipped?.[key] || []);
+  const tsMap = { ...(state.completedTimestamps?.[key] || {}) };
+
   if (current.has(itemId)) {
     current.delete(itemId);
+    delete tsMap[itemId];
   } else {
     current.add(itemId);
     skipped.delete(itemId);
+    if (timestamp) tsMap[itemId] = timestamp;
   }
+
   const nextState = {
     ...state,
     completed: { ...state.completed, [key]: Array.from(current) },
-    skipped: { ...state.skipped, [key]: Array.from(skipped) }
+    skipped: { ...state.skipped, [key]: Array.from(skipped) },
+    completedTimestamps: { ...(state.completedTimestamps || {}), [key]: tsMap }
   };
   const nextPending = getNextPendingItem(phase, nextState, key);
   nextState.activeItemId = nextPending?.id || null;
@@ -66,12 +72,15 @@ export function resetPhase(phase, state, stateKey) {
   const key = stateKey !== undefined ? stateKey : phase.id;
   const completed = { ...state.completed };
   const skipped = { ...state.skipped };
+  const completedTimestamps = { ...(state.completedTimestamps || {}) };
   delete completed[key];
   delete skipped[key];
+  delete completedTimestamps[key];
   return {
     ...state,
     activeItemId: phase.items[0]?.id || null,
     completed,
-    skipped
+    skipped,
+    completedTimestamps
   };
 }

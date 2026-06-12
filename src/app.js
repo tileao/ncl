@@ -295,10 +295,15 @@ function getMissionStats() {
   const steps = getMissionSteps();
   const totalGroups = steps.length;
   const totalItems = steps.reduce((s, step) => s + step.phase.items.filter(i => i.required !== false).length, 0);
+  const doneGroups = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
+  const doneItems = steps.reduce((s, step) => {
+    const done = new Set(state.completed?.[step.stepId] || []);
+    return s + step.phase.items.filter(i => i.required !== false && done.has(i.id)).length;
+  }, 0);
   const startedAt = state.flightSessionStartedAt;
   const completedAt = new Date().toISOString();
   const durationMs = startedAt ? new Date(completedAt) - new Date(startedAt) : 0;
-  return { totalGroups, totalItems, startedAt, completedAt, durationMs };
+  return { totalGroups, totalItems, doneGroups, doneItems, startedAt, completedAt, durationMs };
 }
 
 function handleCompleteFlight() {
@@ -315,8 +320,11 @@ function handleCompleteFlight() {
     durationMs: stats.durationMs,
     totalGroups: stats.totalGroups,
     totalItems: stats.totalItems,
+    doneGroups: stats.doneGroups,
+    doneItems: stats.doneItems,
     completed: { ...state.completed },
-    skipped: { ...state.skipped }
+    skipped: { ...state.skipped },
+    completedTimestamps: { ...(state.completedTimestamps || {}) }
   });
   saveFlightLog(log.slice(0, 10));
   persist({ ...state, completedAt: stats.completedAt });
@@ -325,7 +333,7 @@ function handleCompleteFlight() {
 function handleToggleItem(id) {
   const step = selectedStep();
   if (!step) return;
-  persist(toggleItem(step.phase, id, state, step.stepId));
+  persist(toggleItem(step.phase, id, state, step.stepId, new Date().toISOString()));
 }
 
 function handleSkipItem(id) {
@@ -432,24 +440,36 @@ function generateFlightPDF(flightId) {
 
   const doneMap = entry.completed || {};
   const skipMap = entry.skipped || {};
+  const tsMap = entry.completedTimestamps || {};
   const typeLabel = entry.profileId
     ? getProfileLabelFor(entry.profileId, entry.profileParams || {})
     : (entry.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST");
+
+  const fmtTime = iso => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
 
   const groupsHTML = steps.map(step => {
     const items = step.phase.items.filter(i => i.required !== false);
     const done = new Set(doneMap[step.stepId] || []);
     const skip = new Set(skipMap[step.stepId] || []);
+    const stepTs = tsMap[step.stepId] || {};
     const cnt = items.filter(i => done.has(i.id)).length;
     const title = step.label ? `${step.phase.title} — ${step.label}` : step.phase.title;
     const rows = items.map(item => {
       const isDone = done.has(item.id), isSkip = skip.has(item.id);
       const ic = isDone ? "✓" : (isSkip ? "⚠" : "○");
       const cl = isDone ? "done" : (isSkip ? "attn" : "pend");
-      return `<tr class="${cl}"><td class="ic">${ic}</td><td class="ch">${item.challenge}</td><td class="rs">${item.response}</td></tr>`;
+      const ts = isDone && stepTs[item.id] ? `<td class="ts">${fmtTime(stepTs[item.id])}</td>` : `<td class="ts"></td>`;
+      return `<tr class="${cl}"><td class="ic">${ic}</td><td class="ch">${item.challenge}</td><td class="rs">${item.response}</td>${ts}</tr>`;
     }).join("");
     return `<div class="grp"><div class="gh"><span>${title}</span><span>${cnt}/${items.length}</span></div><table><tbody>${rows}</tbody></table></div>`;
   }).join("");
+
+  const doneGroups = entry.doneGroups ?? entry.totalGroups;
+  const doneItems  = entry.doneItems  ?? entry.totalItems;
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>AW139 ${typeLabel} — ${entry.registration || "—"} — ${formatDate(entry.completedAt)}</title>
@@ -467,9 +487,11 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000;background:
 table{width:100%;border-collapse:collapse;font-size:8pt}
 td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-height:1.35}
 .ic{width:16px;text-align:center;font-weight:700}
-.ch{width:55%;font-weight:600}
+.ch{width:48%;font-weight:600}
 .rs{color:#555}
+.ts{width:52px;text-align:right;color:#888;font-size:7.5pt;white-space:nowrap}
 .done .ic{color:#007700}.attn .ic{color:#cc6600}.pend .ic{color:#bbb}
+.done .ts{color:#007700}
 .ftr{margin:10mm 15mm 0;padding-top:4mm;border-top:1px solid #ddd;font-size:7.5pt;color:#888;text-align:center}
 @page{margin:10mm 12mm;size:A4}
 @media print{.nop{display:none!important}}
@@ -484,8 +506,8 @@ td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-hei
     <span><strong>Matrícula:</strong> ${entry.registration || "—"}</span>
     <span><strong>Data:</strong> ${formatDate(entry.completedAt)}</span>
     <span><strong>Duração:</strong> ${formatDuration(entry.durationMs)}</span>
-    <span><strong>Grupos:</strong> ${entry.totalGroups}</span>
-    <span><strong>Itens:</strong> ${entry.totalItems}</span>
+    <span><strong>Grupos:</strong> ${doneGroups}/${entry.totalGroups}</span>
+    <span><strong>Itens:</strong> ${doneItems}/${entry.totalItems}</span>
     <span><strong>Rev.:</strong> ${checklistData.revision.sourceRevision} (${checklistData.revision.effectiveDate})</span>
   </div>
 </div>
@@ -845,6 +867,11 @@ function renderCompletion() {
   const steps = getMissionSteps();
   const totalGroups = steps.length;
   const totalItems = steps.reduce((s, step) => s + step.phase.items.filter(i => i.required !== false).length, 0);
+  const doneGroups = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
+  const doneItems = steps.reduce((s, step) => {
+    const done = new Set(state.completed?.[step.stepId] || []);
+    return s + step.phase.items.filter(i => i.required !== false && done.has(i.id)).length;
+  }, 0);
   const durationMs = state.flightSessionStartedAt && state.completedAt
     ? new Date(state.completedAt) - new Date(state.flightSessionStartedAt) : 0;
   const label = getProfileLabel();
@@ -860,7 +887,7 @@ function renderCompletion() {
         <span class="log-type">${typeLabel}</span>
         <span class="log-date">${formatDate(entry.completedAt)}</span>
         <span class="log-duration">${formatDuration(entry.durationMs)}</span>
-        <span class="log-items">${entry.totalItems} itens</span>
+        <span class="log-items">${entry.doneItems ?? entry.totalItems}/${entry.totalItems} itens</span>
         <button class="log-pdf-btn" data-action="export-pdf" data-flight-id="${escapeHtml(entry.id)}">PDF</button>
       </div>
     `;
@@ -880,11 +907,11 @@ function renderCompletion() {
             <div class="stat-label">Duração</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${totalGroups}/${totalGroups}</div>
+            <div class="stat-value">${doneGroups}/${totalGroups}</div>
             <div class="stat-label">Grupos</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${totalItems}</div>
+            <div class="stat-value">${doneItems}/${totalItems}</div>
             <div class="stat-label">Itens</div>
           </div>
         </div>
