@@ -1042,21 +1042,49 @@ function renderChecklistPagePDF() {
   const fi = steps.findIndex(s => s.stepId === step.stepId);
   const progress = getPhaseProgress(step.phase, state, step.stepId);
   const title = step.label || step.phase.title;
-  const reg = state.flightRegistration || settings.registration;
+  const rev = checklistData.revision;
+  const phase = step.phase;
 
-  const rows = step.phase.items.map(item => {
-    const status = getItemStatus(step.phase, item, state, step.stepId);
+  const isFA = phase.title === "FINAL APPROACH";
+  const titleHtml = isFA
+    ? `<span class="pdfd-hl-yellow">${escapeHtml(title)}</span>`
+    : escapeHtml(title);
+  const hdrCls = phase.categoryId === "offshore" ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
+
+  const itemRows = phase.items.map(item => {
+    const status = getItemStatus(phase, item, state, step.stepId);
     const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
-    const calloutCls = item.callout ? " pdf-item-callout" : "";
-    const bullet = item.callout ? `<span class="pdf-item-bullet">●</span>` : "";
-    return `
-      <button class="pdf-item-row ${status}${calloutCls}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
-        <span class="pdf-item-status">${sym}</span>
-        <span class="pdf-item-name">${bullet}${escapeHtml(item.challenge)}</span>
-        <span class="pdf-item-dots"></span>
-        <span class="pdf-item-response">${escapeHtml(item.response)}</span>
-      </button>
-    `;
+    const btn = `data-action="toggle-item" data-item-id="${escapeHtml(item.id)}"`;
+
+    // Red MEMORY row (+ cyan wrapper on normal checklist)
+    if (item.id === "nfa-002" || item.id === "ofa-002") {
+      const wrap = item.id === "nfa-002" ? " pdfd-cyanwrap" : "";
+      return `<button class="pdfd-item pdfd-memory pdfd-item-tap${wrap} ${status}" ${btn}>
+        <span class="pdfd-mem-text">${escapeHtml(item.challenge)} …….. ${escapeHtml(item.response)}</span>
+        <span class="pdfd-state-sym">${sym}</span>
+      </button>`;
+    }
+
+    // Yellow PF CALLS block (wraps two lines like original)
+    if (item.id === "otp-002") {
+      return `<button class="pdfd-item pdfd-yellowblock pdfd-item-tap ${status}" ${btn}>
+        <span>${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.</span>
+        <span class="pdfd-state-sym">${sym}</span>
+      </button>`;
+    }
+
+    const bullet = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
+    const greenDeck = (item.tags || []).includes("GREEN DECK");
+    const resp = greenDeck
+      ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
+      : escapeHtml(item.response);
+
+    return `<button class="pdfd-item pdfd-item-tap ${status}" ${btn}>
+      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}</span>
+      <span class="pdfd-dots"></span>
+      <span class="pdfd-resp">${resp}</span>
+      <span class="pdfd-state-sym">${sym}</span>
+    </button>`;
   }).join("");
 
   const completionBanner = progress.isComplete ? `
@@ -1074,26 +1102,28 @@ function renderChecklistPagePDF() {
 
   return `
     <div class="pdf-view-page">
-      <div class="pdf-topbar">
+      <div class="pdf-topbar pdf-topbar-detail">
+        <button class="pdfd-back-btn" data-action="nav-groups">← Mapa</button>
         <div class="pdf-topbar-info">
-          <div class="pdf-doc-kicker">Grupo ${fi + 1}/${steps.length} • ${escapeHtml(step.phase.categoryTitle)}</div>
-          <div class="pdf-doc-mission">${escapeHtml(title)}</div>
+          <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(phase.categoryTitle)}</div>
+          <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
         </div>
         ${renderViewToggle()}
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
-        <div class="pdf-section-block">
-          <div class="pdf-section-title">
-            <span>${escapeHtml(title)}</span>
-            <span class="pdf-section-count">${progress.done}/${progress.total}</span>
+        <div class="pdfd-cutout">
+          <div class="pdfd-cutout-header">
+            <img src="./assets/omni-logo.png" alt="OMNI" class="pdfd-cutout-logo">
+            <span class="pdfd-cutout-doctitle">${escapeHtml(rev.sourceDocumentTitle)}</span>
+            <span class="pdfd-cutout-page">Pág. ${checklistData.phases.find(p => p.id === phase.id)?.pdfPage || "?"}</span>
           </div>
-          <div class="pdf-prog-bar"><div class="pdf-prog-fill" style="width:${progress.percent}%"></div></div>
-          <div class="pdf-items-list">${rows}</div>
-        </div>
-        <div class="pdf-footer-strip">
-          REVISÃO: ${escapeHtml(checklistData.revision.sourceRevision)} &nbsp;|&nbsp;
-          ${escapeHtml(checklistData.revision.effectiveDate)} &nbsp;|&nbsp;
-          ${escapeHtml(checklistData.revision.source)}${reg ? ` &nbsp;|&nbsp; ${escapeHtml(reg)}` : ""}
+          <div class="pdfd-sec pdfd-cutout-sec">
+            <div class="${hdrCls}">${titleHtml}</div>
+            ${itemRows}
+          </div>
+          <div class="pdfd-cutout-footer">
+            REVISÃO: ${escapeHtml(rev.sourceRevision)} &nbsp;|&nbsp; ${escapeHtml(rev.effectiveDate)} &nbsp;|&nbsp; ${escapeHtml(rev.sourceBasis)}
+          </div>
         </div>
       </div>
       ${completionBanner}
