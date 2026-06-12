@@ -1623,14 +1623,14 @@ button {
 
 .pdf-view-page {
   min-height: 100vh;
-  background: #f8f6f0;
-  color: #1a1a1a;
+  background: #fff;
+  color: #000;
   font-family: Arial, Helvetica, sans-serif;
   display: flex;
   flex-direction: column;
 }
 
-/* Dark topbar (app navigation layer, consistent with cockpit topbar) */
+/* Dark topbar — app navigation layer */
 .pdf-topbar {
   display: flex;
   align-items: flex-start;
@@ -1666,11 +1666,11 @@ button {
   line-height: 1.2;
 }
 
-/* Scrollable document area */
+/* Scrollable white document area */
 .pdf-body {
   flex: 1;
   overflow-y: auto;
-  background: #f8f6f0;
+  background: #fff;
 }
 
 /* ─── Groups overview — two-column PDF layout ────────────────────────────── */
@@ -1678,91 +1678,150 @@ button {
 .pdf-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 12px;
-  padding-bottom: calc(var(--bar-h) + 20px);
+  gap: 0;
+  padding: 6px 6px calc(var(--bar-h) + 20px);
+  background: #fff;
 }
 
 .pdf-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  padding: 0 4px;
 }
 
-@media (max-width: 480px) {
+.pdf-col-right {
+  border-left: 1px solid #ccc;
+}
+
+@media (max-width: 520px) {
   .pdf-two-col {
     grid-template-columns: 1fr;
   }
+
+  .pdf-col-right {
+    border-left: none;
+    border-top: 2px solid #333;
+    padding-top: 6px;
+    margin-top: 6px;
+  }
 }
 
-/* Group blocks — styled like PDF section headers */
-.pdf-grp-block {
+/* Section header — bold centered, matches PDF section titles */
+.pdf-sec-hdr {
   width: 100%;
+  display: block;
+  padding: 5px 4px;
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   text-align: center;
-  background: #fff;
-  border: 1px solid #c0b090;
-  border-radius: 3px;
-  padding: 0;
-  overflow: hidden;
+  border: none;
+  border-top: 1.5px solid #2a2a2a;
+  border-bottom: 1px solid #aaa;
+  background: transparent;
+  color: #000;
   cursor: pointer;
-  transition: box-shadow 100ms;
+  transition: background 80ms;
 }
 
-.pdf-grp-block:hover,
-.pdf-grp-block:focus-visible {
-  box-shadow: 0 0 0 2px #c8a05a;
+.pdf-sec-hdr:first-child {
+  margin-top: 0;
+}
+
+.pdf-sec-hdr:hover,
+.pdf-sec-hdr:focus-visible {
+  background: #f0f0f0;
   outline: none;
 }
 
-.pdf-grp-hdr {
-  display: block;
-  padding: 8px 10px;
-  background: #e8e3d5;
-  border-bottom: 1px solid #c0b090;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: #2a2010;
-}
-
-.pdf-grp-block.pdf-grp-done .pdf-grp-hdr {
-  background: #d0ece0;
-  color: #155530;
+.pdf-sec-hdr.pdf-sec-done {
+  color: #28a060;
+  border-top-color: #28a060;
   border-bottom-color: #80c898;
 }
 
-.pdf-grp-block.pdf-grp-active .pdf-grp-hdr {
-  background: #fef7d8;
+.pdf-sec-hdr.pdf-sec-active {
+  background: #fffce8;
+  border-top-color: #b08020;
   color: #7a4e00;
-  border-bottom-color: #c8a05a;
 }
 
-.pdf-grp-prog {
-  display: block;
-  padding: 5px 8px;
+/* Overview item rows — visual only, not tappable */
+.pdf-item-ov {
+  display: flex;
+  align-items: baseline;
+  padding: 1px 2px;
+  min-height: 18px;
+}
+
+.pdf-item-ov.pdf-ov-callout {
+  background: #e4f0ff;
+}
+
+.pdf-ov-sym {
+  flex-shrink: 0;
+  width: 11px;
+  font-size: 8px;
+  font-weight: 900;
+  text-align: center;
+  color: #ccc;
+}
+
+.pdf-item-ov.completed .pdf-ov-sym { color: #28a060; }
+.pdf-item-ov.skipped   .pdf-ov-sym { color: #d07820; }
+.pdf-item-ov.active    .pdf-ov-sym { color: #b07820; }
+
+.pdf-ov-name {
+  flex-shrink: 1;
+  flex-grow: 0;
   font-size: 10px;
-  font-weight: 700;
-  color: #888;
-  background: #fff;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #000;
+  max-width: 54%;
 }
 
-.pdf-grp-block.pdf-grp-done .pdf-grp-prog {
-  color: #28a060;
-  background: #f5fef9;
+.pdf-item-ov.completed .pdf-ov-name { color: #28a060; }
+.pdf-item-ov.skipped   .pdf-ov-name { color: #b06020; }
+
+.pdf-ov-dots {
+  flex: 1;
+  min-width: 4px;
+  border-bottom: 1px dotted #aaa;
+  margin: 0 2px 0.18em;
+  align-self: flex-end;
 }
 
-.pdf-grp-block.pdf-grp-active .pdf-grp-prog {
-  color: #8a5800;
-  background: #fffdf0;
+.pdf-item-ov.completed .pdf-ov-dots { border-color: #80c898; }
+
+.pdf-ov-resp {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 400;
+  color: #333;
+  text-align: right;
+  white-space: nowrap;
+  text-transform: uppercase;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ─── Single-group checklist — PDF table format ──────────────────────────── */
+.pdf-item-ov.completed .pdf-ov-resp { color: #28a060; }
+.pdf-item-ov.skipped   .pdf-ov-resp { color: #b06020; }
+
+/* ─── Checklist detail — PDF table with dotted leaders ───────────────────── */
 
 .pdf-section-block {
-  margin: 12px;
-  border: 1px solid #c0b090;
-  border-radius: 4px;
+  margin: 10px;
+  border: 1px solid #bbb;
+  border-radius: 2px;
   overflow: hidden;
   background: #fff;
 }
@@ -1772,26 +1831,26 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 14px;
-  background: #e8e3d5;
-  border-bottom: 1px solid #c0b090;
-  font-size: 13px;
+  padding: 7px 12px;
+  border-bottom: 1px solid #bbb;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #2a2010;
+  color: #000;
+  background: #fff;
 }
 
 .pdf-section-count {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
-  color: #888;
+  color: #777;
   flex-shrink: 0;
 }
 
 .pdf-prog-bar {
-  height: 4px;
-  background: #e8dfc8;
+  height: 3px;
+  background: #e8e8e8;
 }
 
 .pdf-prog-fill {
@@ -1805,122 +1864,92 @@ button {
   flex-direction: column;
 }
 
-/* ─── PDF item rows — dotted leader format ───────────────────────────────── */
-
+/* Item rows — tappable, dotted leader format */
 .pdf-item-row {
   width: 100%;
   display: flex;
   align-items: baseline;
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: #fff;
   border: none;
-  border-top: 1px solid #f0ece0;
-  color: #1a1a1a;
+  border-top: 1px solid #f0ece4;
+  color: #000;
   cursor: pointer;
   touch-action: pan-y;
   user-select: none;
-  min-height: 36px;
+  min-height: 34px;
   transition: background 80ms;
 }
 
 .pdf-item-row:hover,
-.pdf-item-row:focus-visible {
-  background: #faf7ee;
-  outline: none;
-}
+.pdf-item-row:focus-visible { background: #f8f8f8; outline: none; }
+.pdf-item-row.completed     { background: #f4fcf8; }
+.pdf-item-row.active        { background: #fffce6; border-left: 3px solid #b08020; padding-left: 7px; }
+.pdf-item-row.skipped       { background: #fff8f2; border-left: 3px solid #d07820; padding-left: 7px; }
 
-.pdf-item-row.completed {
-  background: #f4fdf8;
-}
+/* Callout items — cyan highlight like the PDF */
+.pdf-item-row.pdf-item-callout             { background: #e4f0ff; }
+.pdf-item-row.pdf-item-callout.completed   { background: #e4f8f0; }
+.pdf-item-row.pdf-item-callout.active      { background: #fffce6; }
 
-.pdf-item-row.active {
-  background: #fffce6;
-  border-left: 3px solid #c8a05a;
-  padding-left: 9px;
-}
-
-.pdf-item-row.skipped {
-  background: #fff8f0;
-  border-left: 3px solid #d07820;
-  padding-left: 9px;
-}
-
-/* Callout / memory items get a subtle blue tint (like the PDF cyan highlight) */
-.pdf-item-row.pdf-item-callout {
-  background: #eef5ff;
-}
-
-.pdf-item-row.pdf-item-callout.completed {
-  background: #eef9f4;
-}
-
-.pdf-item-row.pdf-item-callout.active {
-  background: #fffce6;
-}
-
-/* Status symbol (✓ / ⚠ / blank) */
 .pdf-item-status {
   flex-shrink: 0;
-  width: 16px;
-  font-size: 11px;
+  width: 14px;
+  font-size: 10px;
   font-weight: 900;
   text-align: center;
   color: transparent;
-  margin-right: 3px;
+  margin-right: 2px;
 }
 
 .pdf-item-row.completed .pdf-item-status { color: #28a060; }
 .pdf-item-row.active    .pdf-item-status { color: #b07820; }
 .pdf-item-row.skipped   .pdf-item-status { color: #d07820; }
 
-/* Challenge / item name */
 .pdf-item-name {
   flex-shrink: 1;
   flex-grow: 0;
-  font-size: clamp(10px, 1.9vw, 12px);
-  font-weight: 700;
+  font-size: clamp(11px, 2vw, 13px);
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #1a1a1a;
-  max-width: 54%;
+  color: #000;
+  max-width: 55%;
 }
 
 .pdf-item-row.completed .pdf-item-name { color: #28a060; }
 .pdf-item-row.active    .pdf-item-name { color: #7a4e00; }
 .pdf-item-row.skipped   .pdf-item-name { color: #b06020; }
 
-/* Memory item bullet (●) */
 .pdf-item-bullet {
   font-size: 9px;
   margin-right: 2px;
   color: #444;
 }
 
-/* Dotted leader line between name and response */
+/* Dotted leader line */
 .pdf-item-dots {
   flex: 1;
   min-width: 8px;
-  border-bottom: 1.5px dotted #b8b0a0;
-  margin: 0 4px 0.22em;
+  border-bottom: 1px dotted #999;
+  margin: 0 3px 0.22em;
   align-self: flex-end;
 }
 
-.pdf-item-row.completed .pdf-item-dots { border-color: #90d8a8; }
-.pdf-item-row.active    .pdf-item-dots { border-color: #d4b060; }
-.pdf-item-row.skipped   .pdf-item-dots { border-color: #e0a878; }
+.pdf-item-row.completed .pdf-item-dots { border-color: #80c898; }
+.pdf-item-row.active    .pdf-item-dots { border-color: #c8a040; }
+.pdf-item-row.skipped   .pdf-item-dots { border-color: #d0a080; }
 
-/* Response text (right-aligned) */
 .pdf-item-response {
   flex-shrink: 0;
-  font-size: clamp(9px, 1.6vw, 11px);
-  font-weight: 700;
-  color: #2a2010;
+  font-size: clamp(10px, 1.8vw, 12px);
+  font-weight: 400;
+  color: #222;
   text-align: right;
   white-space: nowrap;
-  letter-spacing: 0.02em;
   text-transform: uppercase;
   max-width: 42%;
   overflow: hidden;
@@ -1928,14 +1957,14 @@ button {
 }
 
 .pdf-item-row.completed .pdf-item-response { color: #28a060; }
-.pdf-item-row.active    .pdf-item-response { color: #7a4e00; font-weight: 900; }
+.pdf-item-row.active    .pdf-item-response { color: #7a4e00; font-weight: 700; }
 .pdf-item-row.skipped   .pdf-item-response { color: #b06020; }
 
-/* Footer strip inside the checklist body (revision / source info) */
+/* Footer strip (revision info, matches PDF footer) */
 .pdf-footer-strip {
-  margin: 8px 12px 4px;
-  padding: 7px 10px;
-  border-top: 1px solid #d0c8b0;
+  margin: 6px 10px 4px;
+  padding: 5px 8px;
+  border-top: 1px solid #ccc;
   font-size: 9px;
   color: #888;
   letter-spacing: 0.04em;
