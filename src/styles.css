@@ -17,6 +17,7 @@
   --radius: 18px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --bar-h: calc(64px + var(--safe-bottom));
 }
 
 * {
@@ -109,12 +110,16 @@ button {
   color: var(--green);
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 14px;
-  max-width: 1100px;
+/* Checklist full-width wrapper (no sidebar) */
+
+.checklist-view {
+  padding-bottom: 0;
+}
+
+.checklist-wrapper {
+  max-width: 820px;
   margin: 0 auto;
+  padding: 0 14px calc(var(--bar-h) + 16px);
 }
 
 .card {
@@ -585,7 +590,7 @@ button {
 
 .sticky-actions {
   position: sticky;
-  bottom: 0;
+  bottom: var(--bar-h);
   z-index: 5;
   backdrop-filter: blur(12px);
 }
@@ -901,27 +906,7 @@ button {
   }
 }
 
-@media (min-width: 861px) {
-  .nav-card {
-    position: sticky;
-    top: calc(12px + var(--safe-top));
-    max-height: calc(100vh - 36px - var(--safe-top));
-    overflow: auto;
-  }
-}
-
-@media (max-width: 860px) {
-  .phase-category {
-    min-width: 100%;
-  }
-
-  .category-row {
-    position: sticky;
-    left: 0;
-    width: max-content;
-    min-width: 220px;
-  }
-
+@media (max-width: 680px) {
   .actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -931,4 +916,209 @@ button {
   .action-btn.advance {
     grid-column: span 2;
   }
+}
+
+/* ─── Groups page ─────────────────────────────────────────────────────────── */
+
+.groups-page {
+  min-height: 100vh;
+  padding: calc(20px + var(--safe-top)) 16px calc(var(--bar-h) + 20px);
+  max-width: 960px;
+  margin: 0 auto;
+  background:
+    radial-gradient(circle at top left, rgba(45, 100, 160, 0.10), transparent 35%),
+    linear-gradient(180deg, #08101a 0%, var(--bg) 55%);
+}
+
+.groups-header {
+  margin-bottom: 20px;
+}
+
+.groups-meta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 860px) {
+  .groups-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .groups-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+.group-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  background: rgba(13, 20, 29, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--text);
+  text-align: left;
+  min-height: 110px;
+  box-shadow: var(--shadow);
+  transition: background 120ms, border-color 120ms, outline 120ms;
+}
+
+.group-card:hover,
+.group-card:focus-visible {
+  background: #0f1e2e;
+  outline: 2px solid rgba(89, 167, 255, 0.3);
+}
+
+.group-card.complete {
+  background: rgba(15, 42, 28, 0.7);
+  border-color: rgba(53, 208, 127, 0.35);
+}
+
+.group-card.active-group {
+  border-color: rgba(89, 167, 255, 0.6);
+  outline: 2px solid rgba(89, 167, 255, 0.2);
+}
+
+.group-card-num {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.group-card.active-group .group-card-num {
+  color: var(--blue);
+}
+
+.group-card.complete .group-card-num {
+  color: var(--green);
+}
+
+.group-card-title {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.group-card.complete .group-card-title {
+  color: var(--green);
+}
+
+.group-card-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.group-card-progress {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--amber);
+}
+
+.group-card.complete .group-card-progress {
+  color: var(--green);
+}
+
+.group-card-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.group-card-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
+/* ─── Bottom floating bar ─────────────────────────────────────────────────── */
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 12px calc(6px + var(--safe-bottom));
+  background: rgba(7, 11, 16, 0.94);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.bottom-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 24px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: transparent;
+  min-width: 72px;
+  transition: color 120ms, background 120ms;
+}
+
+.bottom-btn:hover,
+.bottom-btn:focus-visible {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bottom-btn.active {
+  color: var(--blue);
+}
+
+.bottom-btn.can-advance {
+  color: var(--green);
+}
+
+.bottom-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ─── Continue flight button (shown on selector when mid-flight) ─────────── */
+
+.continue-flight-btn {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(89, 167, 255, 0.10);
+  border: 1px solid rgba(89, 167, 255, 0.30);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-align: left;
 }
