@@ -1970,3 +1970,116 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* ── PDF image overlay ────────────────────────────────────────── */
+.pdf-page-wrapper {
+  max-width: 100%;
+  margin-bottom: 8px;
+}
+
+.pdf-page-ratio {
+  position: relative;
+  width: 100%;
+  padding-top: 141.4%; /* 1404/993 */
+  background: #fff;
+}
+
+.pdf-page-img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
+.pdf-ov-btn {
+  position: absolute;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 2px 4px;
+  transition: background 120ms;
+  box-sizing: border-box;
+}
+
+.pdf-ov-btn:hover,
+.pdf-ov-btn:focus-visible {
+  background: rgba(0, 0, 0, 0.04);
+  outline: none;
+}
+
+.pdf-ov-btn.pdf-ov-done {
+  background: rgba(40, 160, 96, 0.12);
+  border: 1px solid rgba(40, 160, 96, 0.35);
+}
+
+.pdf-ov-btn.pdf-ov-active {
+  background: rgba(200, 160, 40, 0.10);
+  border: 2px solid rgba(200, 160, 40, 0.65);
+}
+
+.pdf-ov-btn.pdf-ov-pending:hover {
+  background: rgba(100, 150, 255, 0.08);
+  border: 1px solid rgba(100, 150, 255, 0.3);
+}
+
+.pdf-ov-badge {
+  font-size: 9px;
+  font-weight: 900;
+  font-family: Arial, sans-serif;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.pdf-ov-badge.done   { background: rgba(40, 160, 96, 0.9); }
+.pdf-ov-badge.active { background: rgba(180, 130, 20, 0.9); }
+
+/* ── Unmapped steps fallback grid ────────────────────────────── */
+.pdf-unmapped-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+}
+
+.pdf-grp-block {
+  width: 100%;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #c0b090;
+  border-radius: 3px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.pdf-grp-hdr {
+  display: block;
+  padding: 8px 10px;
+  background: #e8e3d5;
+  border-bottom: 1px solid #c0b090;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-align: center;
+  color: #1a1a1a;
+}
+
+.pdf-grp-block.pdf-grp-done   .pdf-grp-hdr { background: #d0ece0; color: #155530; }
+.pdf-grp-block.pdf-grp-active .pdf-grp-hdr { background: #fef7d8; color: #7a4e00; }
+
+.pdf-grp-prog {
+  display: block;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+}
+
+.pdf-grp-block.pdf-grp-done   .pdf-grp-prog { color: #28a060; }
+.pdf-grp-block.pdf-grp-active .pdf-grp-prog { color: #8a5800; }
