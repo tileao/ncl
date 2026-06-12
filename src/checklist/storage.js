@@ -1,10 +1,13 @@
 const STORAGE_KEY = "aw139-checklist-state-v2-rev23";
+const LOG_KEY = "aw139-flight-log-v2-rev23";
 
 const defaultState = {
+  flightType: null,
   selectedPhaseId: null,
   activeItemId: null,
   completed: {},
   skipped: {},
+  completedAt: null,
   lastUpdatedAt: null,
   flightSessionStartedAt: null
 };
@@ -19,10 +22,7 @@ export function loadState() {
 }
 
 export function saveState(state) {
-  const next = {
-    ...state,
-    lastUpdatedAt: new Date().toISOString()
-  };
+  const next = { ...state, lastUpdatedAt: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return next;
 }
@@ -30,4 +30,17 @@ export function saveState(state) {
 export function resetAllState() {
   localStorage.removeItem(STORAGE_KEY);
   return { ...defaultState };
+}
+
+export function loadFlightLog() {
+  try {
+    const raw = localStorage.getItem(LOG_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveFlightLog(log) {
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }

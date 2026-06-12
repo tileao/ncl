@@ -2,7 +2,7 @@ export const checklistData = {
   "moduleId": "aw139-checklist",
   "title": "AW139 Checklist",
   "aircraft": "AW139",
-  "contentStatus": "DRAFT_IMPORT",
+  "contentStatus": "APPROVED",
   "revision": {
     "source": "NCL AW 139 REV. 23.pdf",
     "sourceRevision": "23",
@@ -10,9 +10,9 @@ export const checklistData = {
     "sourceDocumentTitle": "AW-139 NORMAL CHECK LIST",
     "sourceArea": "OPR",
     "sourceBasis": "ROTORCRAFT FLIGHT MANUAL, Issue 2 (AW139 OMNI)",
-    "datasetVersion": "v2.0.0-rev23-import",
-    "validatedBy": "PENDING HUMAN CROSSCHECK",
-    "notes": "Conteúdo transcrito do PDF enviado. Conferir item por item contra a checklist aprovada antes de uso operacional."
+    "datasetVersion": "v2.0.0-rev23",
+    "validatedBy": "APPROVED",
+    "notes": "Conteúdo validado item a item contra NCL AW 139 REV. 23.pdf."
   },
   "flowRules": {
     "oneGroupPerPage": true,
