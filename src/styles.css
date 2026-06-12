@@ -835,7 +835,7 @@ button {
 
 .log-entry {
   display: grid;
-  grid-template-columns: 72px 1fr auto auto;
+  grid-template-columns: 60px 1fr auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
@@ -898,10 +898,18 @@ button {
   }
 
   .log-entry {
-    grid-template-columns: 60px 1fr auto;
+    grid-template-columns: 50px 1fr auto auto;
   }
 
   .log-items {
+    display: none;
+  }
+
+  .history-entry {
+    grid-template-columns: 50px 1fr auto auto;
+  }
+
+  .history-date {
     display: none;
   }
 }
@@ -1121,4 +1129,217 @@ button {
   font-weight: 900;
   letter-spacing: 0.03em;
   text-align: left;
+}
+
+/* ─── Bottom bar state modifiers ─────────────────────────────────────────── */
+
+.bottom-btn.bb-dim {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.bottom-btn.bb-seek {
+  color: var(--amber);
+}
+
+.bottom-btn.bb-active {
+  color: var(--blue);
+  background: rgba(89, 167, 255, 0.10);
+}
+
+.bottom-btn.bb-next {
+  color: var(--green);
+}
+
+/* ─── Log PDF button (completion screen history table) ───────────────────── */
+
+.log-pdf-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(89, 167, 255, 0.10);
+  border: 1px solid rgba(89, 167, 255, 0.28);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ─── Initial / Home screen ──────────────────────────────────────────────── */
+
+.initial-screen {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  padding: calc(32px + var(--safe-top)) 20px calc(48px + var(--safe-bottom));
+  background:
+    radial-gradient(circle at top left, rgba(45, 100, 160, 0.13), transparent 35%),
+    linear-gradient(180deg, #08101a 0%, var(--bg) 55%);
+}
+
+.initial-inner {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.initial-brand {
+  margin-bottom: 4px;
+}
+
+.initial-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.initial-section-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+.initial-reset {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ─── Registration field ─────────────────────────────────────────────────── */
+
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reg-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.reg-input {
+  width: 100%;
+  padding: 13px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.reg-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.reg-input:focus {
+  border-color: rgba(89, 167, 255, 0.55);
+  outline: 2px solid rgba(89, 167, 255, 0.20);
+}
+
+/* ─── Mission grid (2-up on initial screen) ──────────────────────────────── */
+
+.mission-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ─── Flight history list (initial screen) ───────────────────────────────── */
+
+.history-list {
+  background: rgba(13, 20, 29, 0.92);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.history-entry {
+  display: grid;
+  grid-template-columns: 60px 72px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+
+.history-entry:last-child {
+  border-bottom: 0;
+}
+
+.history-type {
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.history-type.offshore {
+  color: var(--amber);
+}
+
+.history-reg {
+  font-weight: 900;
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-date {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-dur {
+  font-weight: 900;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.history-pdf {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(89, 167, 255, 0.10);
+  border: 1px solid rgba(89, 167, 255, 0.28);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ─── Groups page extras ─────────────────────────────────────────────────── */
+
+.groups-reg {
+  color: var(--text);
+  font-weight: 900;
+}
+
+/* ─── Checklist end spacer (clears bottom bar) ───────────────────────────── */
+
+.checklist-end-spacer {
+  height: 88px;
+  flex-shrink: 0;
 }

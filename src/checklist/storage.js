@@ -1,8 +1,10 @@
 const STORAGE_KEY = "aw139-checklist-state-v2-rev23";
 const LOG_KEY = "aw139-flight-log-v2-rev23";
+const SETTINGS_KEY = "aw139-app-settings-v1";
 
 const defaultState = {
   flightType: null,
+  flightRegistration: "",
   selectedPhaseId: null,
   activeItemId: null,
   completed: {},
@@ -43,4 +45,17 @@ export function loadFlightLog() {
 
 export function saveFlightLog(log) {
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+
+export function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? JSON.parse(raw) : { registration: "" };
+  } catch {
+    return { registration: "" };
+  }
+}
+
+export function saveSettings(settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
