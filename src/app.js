@@ -796,7 +796,7 @@ function renderChecklist() {
 }
 
 function renderChecklistPage() {
-  if (viewMode === "pdf") return renderChecklistPagePDF();
+  return renderChecklistPagePDF(); // detail is always PDF-faithful
 
   const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
   const reg = state.flightRegistration || settings.registration;
@@ -1108,7 +1108,6 @@ function renderChecklistPagePDF() {
           <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(phase.categoryTitle)}</div>
           <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
         </div>
-        ${renderViewToggle()}
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
         <div class="pdfd-cutout">
