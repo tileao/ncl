@@ -1,11 +1,12 @@
-const STORAGE_KEY = "aw139-checklist-state-v2-rev23";
+const STORAGE_KEY = "aw139-checklist-state-v3-rev23";
 const LOG_KEY = "aw139-flight-log-v2-rev23";
 const SETTINGS_KEY = "aw139-app-settings-v1";
 
 const defaultState = {
-  flightType: null,
+  profileId: null,       // "normal" | "offshore" | "normal_offshore" | "normal_stops"
+  profileParams: {},     // { offshoreLegs: 1 } or { stops: 1 }
   flightRegistration: "",
-  selectedPhaseId: null,
+  selectedStepId: null,
   activeItemId: null,
   completed: {},
   skipped: {},

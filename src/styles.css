@@ -1262,6 +1262,65 @@ button {
   gap: 12px;
 }
 
+/* Multi-option mission card (with leg/stop selector instead of direct tap) */
+
+.mission-btn.mission-multi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 16px 14px;
+  cursor: default;
+}
+
+.mission-legs {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mission-legs-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mission-legs-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.leg-btn {
+  flex: 1;
+  min-height: 36px;
+  border-radius: 10px;
+  background: rgba(89, 167, 255, 0.12);
+  border: 1px solid rgba(89, 167, 255, 0.30);
+  color: var(--blue);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.leg-btn:hover,
+.leg-btn:focus-visible {
+  background: rgba(89, 167, 255, 0.22);
+  outline: 2px solid rgba(89, 167, 255, 0.3);
+}
+
+.leg-btn.offshore {
+  background: rgba(255, 191, 71, 0.12);
+  border-color: rgba(255, 191, 71, 0.30);
+  color: var(--amber);
+}
+
+.leg-btn.offshore:hover,
+.leg-btn.offshore:focus-visible {
+  background: rgba(255, 191, 71, 0.22);
+  outline-color: rgba(255, 191, 71, 0.3);
+}
+
 /* ─── Flight history list (initial screen) ───────────────────────────────── */
 
 .history-list {
