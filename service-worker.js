@@ -1,4 +1,4 @@
-const CACHE_NAME = "aw139-checklist-v2.1-rev23-b8";
+const CACHE_NAME = "aw139-checklist-v2.1-rev23-b9";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,8 +10,7 @@ const APP_SHELL = [
   "./src/checklist/engine.js",
   "./assets/icon-192.svg",
   "./assets/icon-512.svg",
-  "./assets/ncl-page-1.png",
-  "./assets/ncl-page-2.png"
+  "./assets/omni-logo.png"
 ];
 
 self.addEventListener("install", event => {

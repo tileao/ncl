@@ -63,39 +63,25 @@ function renderViewToggle() {
   return `<button class="view-toggle ${isPDF ? "pdf-mode" : "cockpit-mode"}" data-action="toggle-view">${isPDF ? ICON_COCKPIT : ICON_PDF} ${isPDF ? "Cockpit" : "PDF"}</button>`;
 }
 
-// ─── PDF section coordinate map (from pdftohtml -xml, page 993×1404 px) ────
-// Positions are in PDF points (892×1262), expressed as % for responsive overlay
+// ─── PDF document layout (faithful recreation of NCL AW 139 REV. 23) ────────
+// Each page mirrors the company PDF: two columns, fixed section order.
 
-const PDF_W = 892, PDF_H = 1262;
-const PDF_COL = {
-  L: { l: 53,  w: 384 },   // left column  (x 53–437)
-  R: { l: 437, w: 455 }    // right column (x 437–892)
-};
-const PDF_SECTIONS = {
-  "normal-cockpit-checks":       { pg: 1, col: "L", t: 115,  h: 560 },
-  "normal-before-engine-start":  { pg: 1, col: "L", t: 680,  h: 326 },
-  "normal-system-checks":        { pg: 1, col: "L", t: 1011, h: 184 },
-  "normal-first-engine-start":   { pg: 1, col: "R", t: 113,  h: 141 },
-  "normal-second-engine-start":  { pg: 1, col: "R", t: 259,  h: 215 },
-  "normal-flight-configuration": { pg: 1, col: "R", t: 479,  h: 217 },
-  "normal-taxing":               { pg: 1, col: "R", t: 701,  h: 140 },
-  "normal-before-take-off":      { pg: 1, col: "R", t: 846,  h: 233 },
-  "normal-after-take-off":       { pg: 1, col: "R", t: 1084, h: 116 },
-  "normal-cruise":               { pg: 2, col: "L", t: 113,  h: 144 },
-  "normal-before-descent":       { pg: 2, col: "L", t: 262,  h: 125 },
-  "normal-before-landing":       { pg: 2, col: "L", t: 392,  h: 125 },
-  "normal-final-approach":       { pg: 2, col: "L", t: 522,  h: 81  },
-  "normal-after-landing":        { pg: 2, col: "L", t: 608,  h: 107 },
-  "normal-engines-shut-down":    { pg: 2, col: "L", t: 720,  h: 268 },
-  "normal-after-rotor-stops":    { pg: 2, col: "L", t: 993,  h: 202 },
-  "offshore-before-descent":     { pg: 2, col: "R", t: 157,  h: 137 },
-  "offshore-before-landing":     { pg: 2, col: "R", t: 299,  h: 191 },
-  "offshore-traffic-pattern":    { pg: 2, col: "R", t: 495,  h: 80  },
-  "offshore-final-approach":     { pg: 2, col: "R", t: 580,  h: 66  },
-  "offshore-after-landing":      { pg: 2, col: "R", t: 651,  h: 99  },
-  "offshore-before-takeoff":     { pg: 2, col: "R", t: 755,  h: 225 },
-  "offshore-after-take-off":     { pg: 2, col: "R", t: 985,  h: 215 },
-};
+const PDF_DOC_PAGES = [
+  {
+    num: "1/2",
+    cols: [
+      { phases: ["normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks"] },
+      { phases: ["normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration", "normal-taxing", "normal-before-take-off", "normal-after-take-off"] }
+    ]
+  },
+  {
+    num: "2/2",
+    cols: [
+      { phases: ["normal-cruise", "normal-before-descent", "normal-before-landing", "normal-final-approach", "normal-after-landing", "normal-engines-shut-down", "normal-after-rotor-stops"] },
+      { boxTitle: "OFFSHORE CHECK LIST", phases: ["offshore-before-descent", "offshore-before-landing", "offshore-traffic-pattern", "offshore-final-approach", "offshore-after-landing", "offshore-before-takeoff", "offshore-after-take-off"] }
+    ]
+  }
+];
 
 // ─── Mission profiles ───────────────────────────────────────────────────────
 
@@ -924,78 +910,124 @@ function renderGroupsPagePDF() {
   const steps = getMissionSteps();
   const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
+  const rev = checklistData.revision;
 
-  // Separate steps into PDF-mapped (overlay) and unmapped (extra legs, etc.)
-  const overlays = { 1: [], 2: [] };
-  const unmapped = [];
-
+  // Group mission steps by phase (multi-leg missions repeat phases)
+  const stepsByPhase = {};
   steps.forEach(step => {
-    const pos = PDF_SECTIONS[step.phaseId];
-    if (!pos) { unmapped.push(step); return; }
-    const progress = getPhaseProgress(step.phase, state, step.stepId);
-    const isActive = step.stepId === state.selectedStepId;
-    const col = PDF_COL[pos.col];
-    overlays[pos.pg].push({
-      stepId: step.stepId,
-      title: step.label || step.phase.title,
-      progress,
-      isActive,
-      style: [
-        `top:${(pos.t / PDF_H * 100).toFixed(2)}%`,
-        `left:${(col.l / PDF_W * 100).toFixed(2)}%`,
-        `width:${(col.w / PDF_W * 100).toFixed(2)}%`,
-        `height:${(pos.h / PDF_H * 100).toFixed(2)}%`
-      ].join(";")
-    });
+    (stepsByPhase[step.phaseId] = stepsByPhase[step.phaseId] || []).push(step);
   });
 
-  const renderBtn = ({ stepId, title, progress, isActive, style }) => {
-    const cls = progress.isComplete ? "pdf-ov-done" : (isActive ? "pdf-ov-active" : "pdf-ov-pending");
-    const badge = progress.isComplete
-      ? `<span class="pdf-ov-badge done">✓</span>`
-      : isActive
-      ? `<span class="pdf-ov-badge active">${progress.done}/${progress.total}</span>`
-      : "";
-    return `<button class="pdf-ov-btn ${cls}" style="${style}" data-action="select-step" data-step-id="${escapeHtml(stepId)}" title="${escapeHtml(title)}">${badge}</button>`;
+  // For a phase with several legs, the "current" leg is the first incomplete one
+  const currentStepFor = phaseSteps => {
+    const pending = phaseSteps.find(s => !getPhaseProgress(s.phase, state, s.stepId).isComplete);
+    return pending || phaseSteps[phaseSteps.length - 1];
   };
 
-  const pagesHtml = [1, 2]
-    .filter(pg => overlays[pg].length)
-    .map(pg => `
-      <div class="pdf-page-wrapper">
-        <div class="pdf-page-ratio">
-          <img class="pdf-page-img" src="./assets/ncl-page-${pg}.png" alt="Página ${pg}" loading="${pg === 1 ? "eager" : "lazy"}">
-          ${overlays[pg].map(renderBtn).join("")}
-        </div>
-      </div>
-    `).join("");
+  const renderItem = (phase, item, stepId) => {
+    const status = stepId ? getItemStatus(phase, item, state, stepId) : "pending";
+    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
+    const bullet = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
 
-  const unmappedHtml = unmapped.length ? `
-    <div class="pdf-unmapped-steps">
-      ${unmapped.map(step => {
-        const progress = getPhaseProgress(step.phase, state, step.stepId);
-        const isActive = step.stepId === state.selectedStepId;
-        const title = step.label || step.phase.title;
-        const sc = progress.isComplete ? " pdf-grp-done" : (isActive ? " pdf-grp-active" : "");
-        const progText = progress.isComplete ? "✓ CONCLUÍDO" : `${progress.done}/${progress.total} itens`;
-        return `<button class="pdf-grp-block${sc}" data-action="select-step" data-step-id="${escapeHtml(step.stepId)}"><div class="pdf-grp-hdr">${escapeHtml(title)}</div><div class="pdf-grp-prog">${progText}</div></button>`;
-      }).join("")}
+    // Highlighted rows reproduced from the company PDF
+    if (item.id === "nfa-002" || item.id === "ofa-002") {
+      return `<div class="pdfd-item pdfd-memory${item.id === "nfa-002" ? " pdfd-cyanwrap" : ""} ${status}">
+        <span class="pdfd-mem-text">${escapeHtml(item.challenge)} …….. ${escapeHtml(item.response)}</span>
+        <span class="pdfd-state-sym">${sym}</span>
+      </div>`;
+    }
+    if (item.id === "otp-002") {
+      return `<div class="pdfd-item pdfd-yellowblock ${status}">
+        <span>${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.</span>
+        <span class="pdfd-state-sym">${sym}</span>
+      </div>`;
+    }
+
+    const greenDeck = (item.tags || []).includes("GREEN DECK");
+    const resp = greenDeck
+      ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
+      : escapeHtml(item.response);
+    return `<div class="pdfd-item ${status}">
+      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}</span>
+      <span class="pdfd-dots"></span>
+      <span class="pdfd-resp">${resp}</span>
+      <span class="pdfd-state-sym">${sym}</span>
+    </div>`;
+  };
+
+  const renderSection = (phaseId, inBox) => {
+    const phase = checklistData.phases.find(p => p.id === phaseId);
+    if (!phase) return "";
+
+    const phaseSteps = stepsByPhase[phaseId] || [];
+    const inMission = phaseSteps.length > 0;
+    const current = inMission ? currentStepFor(phaseSteps) : null;
+    const allDone = inMission && phaseSteps.every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
+    const isActive = inMission && phaseSteps.some(s => s.stepId === state.selectedStepId);
+
+    const isFA = phase.title === "FINAL APPROACH";
+    const titleHtml = isFA ? `<span class="pdfd-hl-yellow">${escapeHtml(phase.title)}</span>` : escapeHtml(phase.title);
+
+    const legChips = phaseSteps.length > 1 ? `<span class="pdfd-legs">${phaseSteps.map((s, i) => {
+      const done = getPhaseProgress(s.phase, state, s.stepId).isComplete;
+      const cur = s.stepId === current.stepId;
+      return `<button class="pdfd-leg-chip${done ? " done" : ""}${cur ? " cur" : ""}" data-action="select-step" data-step-id="${escapeHtml(s.stepId)}" title="${escapeHtml(s.label || phase.title)}">${i + 1}</button>`;
+    }).join("")}</span>` : "";
+
+    const stateChip = allDone ? `<span class="pdfd-sec-check">✓</span>` : "";
+    const hdrCls = inBox ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
+
+    const cls = [
+      "pdfd-sec",
+      inMission ? "" : "pdfd-off",
+      allDone ? "pdfd-done" : "",
+      isActive ? "pdfd-active" : ""
+    ].filter(Boolean).join(" ");
+
+    const interactive = inMission ? ` data-action="select-step" data-step-id="${escapeHtml(current.stepId)}" role="button" tabindex="0"` : "";
+
+    return `<div class="${cls}"${interactive}>
+      <div class="${hdrCls}">${titleHtml}${stateChip}${legChips}</div>
+      ${phase.items.map(item => renderItem(phase, item, current ? current.stepId : null)).join("")}
+    </div>`;
+  };
+
+  const renderCol = col => {
+    const sections = col.phases.map(id => renderSection(id, !!col.boxTitle)).join("");
+    return col.boxTitle
+      ? `<div class="pdfd-col"><div class="pdfd-offshore-box"><div class="pdfd-box-title">${escapeHtml(col.boxTitle)}</div>${sections}</div></div>`
+      : `<div class="pdfd-col">${sections}</div>`;
+  };
+
+  const pagesHtml = PDF_DOC_PAGES.map(page => `
+    <div class="pdfd-page">
+      <div class="pdfd-header">
+        <div class="pdfd-h-logo"><img src="./assets/omni-logo.png" alt="OMNI Táxi Aéreo"></div>
+        <div class="pdfd-h-title">${escapeHtml(rev.sourceDocumentTitle)}</div>
+        <div class="pdfd-h-cell"><span class="pdfd-h-navy">ÁREA:</span><span class="pdfd-h-navy">${escapeHtml(rev.sourceArea)}</span></div>
+        <div class="pdfd-h-cell"><span class="pdfd-h-navy">PÁGINA</span><span>${escapeHtml(page.num)}</span></div>
+      </div>
+      <div class="pdfd-cols">${page.cols.map(renderCol).join("")}</div>
+      <div class="pdfd-footer">
+        <div class="pdfd-f-cell">REVISÃO: <span class="pdfd-f-num">${escapeHtml(rev.sourceRevision)}</span></div>
+        <div class="pdfd-f-cell">DATA: ${escapeHtml(rev.effectiveDate)}</div>
+        <div class="pdfd-f-cell pdfd-f-wide">${escapeHtml(rev.sourceBasis)}</div>
+      </div>
     </div>
-  ` : "";
+  `).join("");
 
   return `
     <div class="pdf-view-page">
       <div class="pdf-topbar">
         <div class="pdf-topbar-info">
-          <div class="pdf-doc-kicker">AW139 • Rev. ${escapeHtml(checklistData.revision.sourceRevision)}</div>
+          <div class="pdf-doc-kicker">AW139 • Rev. ${escapeHtml(rev.sourceRevision)}</div>
           <div class="pdf-doc-mission">${escapeHtml(label)}</div>
-          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}Toque num grupo para abrir</div>
+          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}Toque numa seção para abrir</div>
         </div>
         ${renderViewToggle()}
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + 20px)">
         ${pagesHtml}
-        ${unmappedHtml}
       </div>
       ${renderBottomBar()}
     </div>
@@ -1092,7 +1124,10 @@ function render() {
 
 function bindEvents() {
   document.querySelectorAll("[data-action='select-step']").forEach(btn => {
-    btn.addEventListener("click", () => selectStep(btn.dataset.stepId));
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      selectStep(btn.dataset.stepId);
+    });
   });
 
   document.querySelectorAll("[data-action='select-profile']").forEach(btn => {

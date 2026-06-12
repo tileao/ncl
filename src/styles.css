@@ -1673,148 +1673,284 @@ button {
   background: #fff;
 }
 
-/* ─── Groups overview — two-column PDF layout ────────────────────────────── */
+/* ─── Groups overview — faithful recreation of the company PDF ───────────── */
 
-.pdf-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  padding: 6px 6px calc(var(--bar-h) + 20px);
+.pdfd-page {
   background: #fff;
+  padding: 1.6em 1.3em 1.2em;
+  font-size: clamp(6.5px, 2.45vw, 13px);
+  font-family: Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color: #000;
+  max-width: 620px;
+  margin: 0 auto;
+  border-bottom: 8px solid #e4e4e4;
 }
 
-.pdf-col {
+/* Document header table: logo | title | área | página */
+.pdfd-header {
+  display: grid;
+  grid-template-columns: 24% 1fr 12% 14%;
+  border: 1px solid #000;
+  margin-bottom: 1.5em;
+}
+
+.pdfd-h-logo {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #000;
+  padding: 0.35em;
+}
+
+.pdfd-h-logo img {
+  width: 100%;
+  max-width: 9.5em;
+  display: block;
+}
+
+.pdfd-h-title {
+  background: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #000080;
+  font-size: 1.3em;
+  text-align: center;
+  border-right: 1px solid #000;
+  padding: 0.2em 0.3em;
+}
+
+.pdfd-h-cell {
+  background: #ddd;
   display: flex;
   flex-direction: column;
-  padding: 0 4px;
-}
-
-.pdf-col-right {
-  border-left: 1px solid #ccc;
-}
-
-@media (max-width: 520px) {
-  .pdf-two-col {
-    grid-template-columns: 1fr;
-  }
-
-  .pdf-col-right {
-    border-left: none;
-    border-top: 2px solid #333;
-    padding-top: 6px;
-    margin-top: 6px;
-  }
-}
-
-/* Section header — bold centered, matches PDF section titles */
-.pdf-sec-hdr {
-  width: 100%;
-  display: block;
-  padding: 5px 4px;
-  margin-top: 10px;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05em;
   text-align: center;
-  border: none;
-  border-top: 1.5px solid #2a2a2a;
-  border-bottom: 1px solid #aaa;
-  background: transparent;
-  color: #000;
+  padding: 0.2em;
+  line-height: 1.35;
+}
+
+.pdfd-h-cell + .pdfd-h-cell { border-left: 1px solid #000; }
+.pdfd-h-navy { color: #000080; font-weight: 700; }
+
+/* Two columns, right slightly wider — same as the PDF */
+.pdfd-cols {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 1.5em;
+  align-items: start;
+}
+
+.pdfd-col { min-width: 0; }
+
+/* Sections */
+.pdfd-sec {
+  margin-bottom: 1.3em;
   cursor: pointer;
-  transition: background 80ms;
+  position: relative;
+  border-radius: 2px;
 }
 
-.pdf-sec-hdr:first-child {
-  margin-top: 0;
+.pdfd-sec.pdfd-off {
+  opacity: 0.32;
+  filter: grayscale(1);
+  cursor: default;
+  pointer-events: none;
 }
 
-.pdf-sec-hdr:hover,
-.pdf-sec-hdr:focus-visible {
-  background: #f0f0f0;
-  outline: none;
+.pdfd-sec.pdfd-active {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
 }
 
-.pdf-sec-hdr.pdf-sec-done {
-  color: #28a060;
-  border-top-color: #28a060;
-  border-bottom-color: #80c898;
+.pdfd-sec:not(.pdfd-off):hover,
+.pdfd-sec:not(.pdfd-off):focus-visible {
+  background: rgba(0, 0, 0, 0.03);
+  outline-color: var(--amber);
 }
 
-.pdf-sec-hdr.pdf-sec-active {
-  background: #fffce8;
-  border-top-color: #b08020;
-  color: #7a4e00;
+/* Gray section bar — #BFBFBF with black border, exactly like the PDF */
+.pdfd-sec-hdr {
+  background: #bfbfbf;
+  border: 1px solid #000;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.12em;
+  padding: 0.1em 1.8em;
+  margin-bottom: 0.25em;
+  position: relative;
 }
 
-/* Overview item rows — visual only, not tappable */
-.pdf-item-ov {
+/* Offshore sub-headers: bold centered text, no gray bar */
+.pdfd-sub-hdr {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05em;
+  margin-bottom: 0.15em;
+  padding: 0 1.8em;
+  position: relative;
+}
+
+.pdfd-sec-check {
+  position: absolute;
+  right: 0.35em;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #1a7f4e;
+  font-weight: 900;
+  font-size: 0.95em;
+}
+
+/* Multi-leg chips (missions with several CRUISE legs / stops) */
+.pdfd-legs {
+  position: absolute;
+  left: 0.3em;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 0.25em;
+}
+
+.pdfd-leg-chip {
+  min-width: 1.5em;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1.5em;
+  background: #fff;
+  border: 1px solid #888;
+  border-radius: 2px;
+  padding: 0 0.2em;
+  color: #444;
+}
+
+.pdfd-leg-chip.done { background: #1a7f4e; border-color: #1a7f4e; color: #fff; }
+.pdfd-leg-chip.cur  { background: #fff3c8; border-color: #b07820; color: #7a4e00; }
+
+/* Item rows: NAME ........ RESPONSE */
+.pdfd-item {
   display: flex;
   align-items: baseline;
-  padding: 1px 2px;
-  min-height: 18px;
-}
-
-.pdf-item-ov.pdf-ov-callout {
-  background: #e4f0ff;
-}
-
-.pdf-ov-sym {
-  flex-shrink: 0;
-  width: 11px;
-  font-size: 8px;
-  font-weight: 900;
-  text-align: center;
-  color: #ccc;
-}
-
-.pdf-item-ov.completed .pdf-ov-sym { color: #28a060; }
-.pdf-item-ov.skipped   .pdf-ov-sym { color: #d07820; }
-.pdf-item-ov.active    .pdf-ov-sym { color: #b07820; }
-
-.pdf-ov-name {
-  flex-shrink: 1;
-  flex-grow: 0;
-  font-size: 10px;
-  font-weight: 400;
+  line-height: 1.45;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #000;
-  max-width: 54%;
 }
 
-.pdf-item-ov.completed .pdf-ov-name { color: #28a060; }
-.pdf-item-ov.skipped   .pdf-ov-name { color: #b06020; }
+.pdfd-name { flex: 0 1 auto; min-width: 0; }
 
-.pdf-ov-dots {
-  flex: 1;
-  min-width: 4px;
-  border-bottom: 1px dotted #aaa;
-  margin: 0 2px 0.18em;
+.pdfd-dots {
+  flex: 1 1 0.6em;
+  min-width: 0.6em;
+  border-bottom: 1px dotted #555;
+  margin: 0 0.15em 0.3em;
   align-self: flex-end;
 }
 
-.pdf-item-ov.completed .pdf-ov-dots { border-color: #80c898; }
-
-.pdf-ov-resp {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 400;
-  color: #333;
+.pdfd-resp {
+  flex: 0 0 auto;
+  max-width: 58%;
   text-align: right;
+}
+
+.pdfd-bullet { font-size: 0.75em; margin-right: 0.15em; }
+
+.pdfd-state-sym {
+  flex: 0 0 auto;
+  width: 1em;
+  text-align: right;
+  font-weight: 900;
+  font-size: 0.85em;
+  color: transparent;
+}
+
+.pdfd-item.completed { color: #1a7f4e; }
+.pdfd-item.completed .pdfd-dots { border-color: #7fb89a; }
+.pdfd-item.completed .pdfd-state-sym { color: #1a7f4e; }
+.pdfd-item.skipped { color: #b06020; }
+.pdfd-item.skipped .pdfd-state-sym { color: #d07820; }
+
+/* Highlights reproduced from the company PDF */
+.pdfd-hl-yellow { background: #ffff00; padding: 0 0.2em; }
+
+.pdfd-hl-green {
+  background: #00c020;
+  color: #fff;
+  font-weight: 700;
+  padding: 0 0.2em;
+}
+
+.pdfd-memory {
+  background: #ff0000;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.06em 0.25em;
+  margin: 0.15em 0;
+  justify-content: space-between;
+}
+
+.pdfd-memory.completed { color: #fff; }
+.pdfd-memory.completed .pdfd-state-sym { color: #fff; }
+.pdfd-mem-text { flex: 1; }
+
+.pdfd-cyanwrap {
+  box-shadow: 0 0 0 0.28em #00ffff;
+  margin: 0.4em 0.28em;
+}
+
+.pdfd-yellowblock {
+  display: flex;
+  background: #ffff00;
+  color: #000;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 0.08em 0.25em;
+  margin: 0.1em 0;
+}
+
+.pdfd-yellowblock.completed { color: #1a5c30; }
+.pdfd-yellowblock .pdfd-state-sym { align-self: center; }
+.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a7f4e; }
+
+/* Offshore box: orange border around the whole column */
+.pdfd-offshore-box {
+  border: 0.24em solid #e96f0a;
+  padding: 0.5em 0.55em 0.8em;
+}
+
+.pdfd-box-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.15em;
+  margin: 0.25em 0 0.8em;
+}
+
+.pdfd-offshore-box .pdfd-sec { margin-bottom: 1em; }
+.pdfd-offshore-box .pdfd-sec:last-child { margin-bottom: 0; }
+
+/* Document footer bar */
+.pdfd-footer {
+  display: grid;
+  grid-template-columns: 22% 27% 1fr;
+  border: 1px solid #000;
+  margin-top: 1.3em;
+  background: #bfbfbf;
+  color: #000080;
+  font-weight: 700;
+}
+
+.pdfd-f-cell {
+  padding: 0.25em 0.4em;
+  border-right: 1px solid #000;
+  text-align: center;
   white-space: nowrap;
-  text-transform: uppercase;
-  max-width: 42%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pdf-item-ov.completed .pdf-ov-resp { color: #28a060; }
-.pdf-item-ov.skipped   .pdf-ov-resp { color: #b06020; }
+.pdfd-f-cell:last-child { border-right: none; }
+.pdfd-f-num { margin-left: 0.6em; }
 
 /* ─── Checklist detail — PDF table with dotted leaders ───────────────────── */
 
@@ -1971,115 +2107,3 @@ button {
   text-transform: uppercase;
 }
 
-/* ── PDF image overlay ────────────────────────────────────────── */
-.pdf-page-wrapper {
-  max-width: 100%;
-  margin-bottom: 8px;
-}
-
-.pdf-page-ratio {
-  position: relative;
-  width: 100%;
-  padding-top: 141.4%; /* 1404/993 */
-  background: #fff;
-}
-
-.pdf-page-img {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  object-fit: fill;
-  display: block;
-}
-
-.pdf-ov-btn {
-  position: absolute;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 2px 4px;
-  transition: background 120ms;
-  box-sizing: border-box;
-}
-
-.pdf-ov-btn:hover,
-.pdf-ov-btn:focus-visible {
-  background: rgba(0, 0, 0, 0.04);
-  outline: none;
-}
-
-.pdf-ov-btn.pdf-ov-done {
-  background: rgba(40, 160, 96, 0.12);
-  border: 1px solid rgba(40, 160, 96, 0.35);
-}
-
-.pdf-ov-btn.pdf-ov-active {
-  background: rgba(200, 160, 40, 0.10);
-  border: 2px solid rgba(200, 160, 40, 0.65);
-}
-
-.pdf-ov-btn.pdf-ov-pending:hover {
-  background: rgba(100, 150, 255, 0.08);
-  border: 1px solid rgba(100, 150, 255, 0.3);
-}
-
-.pdf-ov-badge {
-  font-size: 9px;
-  font-weight: 900;
-  font-family: Arial, sans-serif;
-  padding: 1px 4px;
-  border-radius: 3px;
-  color: #fff;
-  line-height: 1.4;
-}
-
-.pdf-ov-badge.done   { background: rgba(40, 160, 96, 0.9); }
-.pdf-ov-badge.active { background: rgba(180, 130, 20, 0.9); }
-
-/* ── Unmapped steps fallback grid ────────────────────────────── */
-.pdf-unmapped-steps {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 8px;
-}
-
-.pdf-grp-block {
-  width: 100%;
-  text-align: center;
-  background: #fff;
-  border: 1px solid #c0b090;
-  border-radius: 3px;
-  padding: 0;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.pdf-grp-hdr {
-  display: block;
-  padding: 8px 10px;
-  background: #e8e3d5;
-  border-bottom: 1px solid #c0b090;
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  text-align: center;
-  color: #1a1a1a;
-}
-
-.pdf-grp-block.pdf-grp-done   .pdf-grp-hdr { background: #d0ece0; color: #155530; }
-.pdf-grp-block.pdf-grp-active .pdf-grp-hdr { background: #fef7d8; color: #7a4e00; }
-
-.pdf-grp-prog {
-  display: block;
-  padding: 5px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #888;
-}
-
-.pdf-grp-block.pdf-grp-done   .pdf-grp-prog { color: #28a060; }
-.pdf-grp-block.pdf-grp-active .pdf-grp-prog { color: #8a5800; }
