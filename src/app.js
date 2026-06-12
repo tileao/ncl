@@ -63,6 +63,40 @@ function renderViewToggle() {
   return `<button class="view-toggle ${isPDF ? "pdf-mode" : "cockpit-mode"}" data-action="toggle-view">${isPDF ? ICON_COCKPIT : ICON_PDF} ${isPDF ? "Cockpit" : "PDF"}</button>`;
 }
 
+// ─── PDF section coordinate map (from pdftohtml -xml, page 993×1404 px) ────
+// Positions are in PDF points (892×1262), expressed as % for responsive overlay
+
+const PDF_W = 892, PDF_H = 1262;
+const PDF_COL = {
+  L: { l: 53,  w: 384 },   // left column  (x 53–437)
+  R: { l: 437, w: 455 }    // right column (x 437–892)
+};
+const PDF_SECTIONS = {
+  "normal-cockpit-checks":       { pg: 1, col: "L", t: 115,  h: 560 },
+  "normal-before-engine-start":  { pg: 1, col: "L", t: 680,  h: 326 },
+  "normal-system-checks":        { pg: 1, col: "L", t: 1011, h: 184 },
+  "normal-first-engine-start":   { pg: 1, col: "R", t: 113,  h: 141 },
+  "normal-second-engine-start":  { pg: 1, col: "R", t: 259,  h: 215 },
+  "normal-flight-configuration": { pg: 1, col: "R", t: 479,  h: 217 },
+  "normal-taxing":               { pg: 1, col: "R", t: 701,  h: 140 },
+  "normal-before-take-off":      { pg: 1, col: "R", t: 846,  h: 233 },
+  "normal-after-take-off":       { pg: 1, col: "R", t: 1084, h: 116 },
+  "normal-cruise":               { pg: 2, col: "L", t: 113,  h: 144 },
+  "normal-before-descent":       { pg: 2, col: "L", t: 262,  h: 125 },
+  "normal-before-landing":       { pg: 2, col: "L", t: 392,  h: 125 },
+  "normal-final-approach":       { pg: 2, col: "L", t: 522,  h: 81  },
+  "normal-after-landing":        { pg: 2, col: "L", t: 608,  h: 107 },
+  "normal-engines-shut-down":    { pg: 2, col: "L", t: 720,  h: 268 },
+  "normal-after-rotor-stops":    { pg: 2, col: "L", t: 993,  h: 202 },
+  "offshore-before-descent":     { pg: 2, col: "R", t: 157,  h: 137 },
+  "offshore-before-landing":     { pg: 2, col: "R", t: 299,  h: 191 },
+  "offshore-traffic-pattern":    { pg: 2, col: "R", t: 495,  h: 80  },
+  "offshore-final-approach":     { pg: 2, col: "R", t: 580,  h: 66  },
+  "offshore-after-landing":      { pg: 2, col: "R", t: 651,  h: 99  },
+  "offshore-before-takeoff":     { pg: 2, col: "R", t: 755,  h: 225 },
+  "offshore-after-take-off":     { pg: 2, col: "R", t: 985,  h: 215 },
+};
+
 // ─── Mission profiles ───────────────────────────────────────────────────────
 
 function buildMissionSteps(profileId, params = {}) {
@@ -891,30 +925,63 @@ function renderGroupsPagePDF() {
   const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  // Split into two balanced columns by total item count
-  const totalItems = steps.reduce((s, st) => s + st.phase.items.length, 0);
-  const halfItems = Math.ceil(totalItems / 2);
-  let itemsSeen = 0;
-  const cols = ["", ""];
+  // Separate steps into PDF-mapped (overlay) and unmapped (extra legs, etc.)
+  const overlays = { 1: [], 2: [] };
+  const unmapped = [];
 
   steps.forEach(step => {
-    const col = itemsSeen < halfItems ? 0 : 1;
+    const pos = PDF_SECTIONS[step.phaseId];
+    if (!pos) { unmapped.push(step); return; }
     const progress = getPhaseProgress(step.phase, state, step.stepId);
     const isActive = step.stepId === state.selectedStepId;
-    const title = step.label || step.phase.title;
-    const statusCls = progress.isComplete ? " pdf-sec-done" : (isActive ? " pdf-sec-active" : "");
-
-    cols[col] += `<button class="pdf-sec-hdr${statusCls}" data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">${escapeHtml(title)}</button>`;
-
-    step.phase.items.forEach(item => {
-      const st = getItemStatus(step.phase, item, state, step.stepId);
-      const callCls = item.callout ? " pdf-ov-callout" : "";
-      const sym = st === "completed" ? "✓" : st === "skipped" ? "⚠" : (item.callout ? "●" : "");
-      cols[col] += `<div class="pdf-item-ov ${st}${callCls}"><span class="pdf-ov-sym">${sym}</span><span class="pdf-ov-name">${escapeHtml(item.challenge)}</span><span class="pdf-ov-dots"></span><span class="pdf-ov-resp">${escapeHtml(item.response)}</span></div>`;
+    const col = PDF_COL[pos.col];
+    overlays[pos.pg].push({
+      stepId: step.stepId,
+      title: step.label || step.phase.title,
+      progress,
+      isActive,
+      style: [
+        `top:${(pos.t / PDF_H * 100).toFixed(2)}%`,
+        `left:${(col.l / PDF_W * 100).toFixed(2)}%`,
+        `width:${(col.w / PDF_W * 100).toFixed(2)}%`,
+        `height:${(pos.h / PDF_H * 100).toFixed(2)}%`
+      ].join(";")
     });
-
-    itemsSeen += step.phase.items.length;
   });
+
+  const renderBtn = ({ stepId, title, progress, isActive, style }) => {
+    const cls = progress.isComplete ? "pdf-ov-done" : (isActive ? "pdf-ov-active" : "pdf-ov-pending");
+    const badge = progress.isComplete
+      ? `<span class="pdf-ov-badge done">✓</span>`
+      : isActive
+      ? `<span class="pdf-ov-badge active">${progress.done}/${progress.total}</span>`
+      : "";
+    return `<button class="pdf-ov-btn ${cls}" style="${style}" data-action="select-step" data-step-id="${escapeHtml(stepId)}" title="${escapeHtml(title)}">${badge}</button>`;
+  };
+
+  const pagesHtml = [1, 2]
+    .filter(pg => overlays[pg].length)
+    .map(pg => `
+      <div class="pdf-page-wrapper">
+        <div class="pdf-page-ratio">
+          <img class="pdf-page-img" src="./assets/ncl-page-${pg}.png" alt="Página ${pg}" loading="${pg === 1 ? "eager" : "lazy"}">
+          ${overlays[pg].map(renderBtn).join("")}
+        </div>
+      </div>
+    `).join("");
+
+  const unmappedHtml = unmapped.length ? `
+    <div class="pdf-unmapped-steps">
+      ${unmapped.map(step => {
+        const progress = getPhaseProgress(step.phase, state, step.stepId);
+        const isActive = step.stepId === state.selectedStepId;
+        const title = step.label || step.phase.title;
+        const sc = progress.isComplete ? " pdf-grp-done" : (isActive ? " pdf-grp-active" : "");
+        const progText = progress.isComplete ? "✓ CONCLUÍDO" : `${progress.done}/${progress.total} itens`;
+        return `<button class="pdf-grp-block${sc}" data-action="select-step" data-step-id="${escapeHtml(step.stepId)}"><div class="pdf-grp-hdr">${escapeHtml(title)}</div><div class="pdf-grp-prog">${progText}</div></button>`;
+      }).join("")}
+    </div>
+  ` : "";
 
   return `
     <div class="pdf-view-page">
@@ -926,11 +993,9 @@ function renderGroupsPagePDF() {
         </div>
         ${renderViewToggle()}
       </div>
-      <div class="pdf-body">
-        <div class="pdf-two-col">
-          <div class="pdf-col">${cols[0]}</div>
-          <div class="pdf-col pdf-col-right">${cols[1]}</div>
-        </div>
+      <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + 20px)">
+        ${pagesHtml}
+        ${unmappedHtml}
       </div>
       ${renderBottomBar()}
     </div>
