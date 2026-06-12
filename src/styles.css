@@ -2001,6 +2001,21 @@ button {
   text-transform: uppercase;
 }
 
+.pdfd-detail-progbar {
+  height: 5px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.pdfd-detail-progfill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
 /* ── PDF cutout — the document excerpt wrapper ───────────────── */
 .pdfd-cutout {
   margin: 10px 8px 16px;
