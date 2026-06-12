@@ -625,23 +625,56 @@ function renderGroupsPage() {
   const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  const cards = steps.map((step, idx) => {
-    const progress = getPhaseProgress(step.phase, state, step.stepId);
-    const isComplete = progress.isComplete;
-    const isActive = step.stepId === state.selectedStepId;
-    const title = step.label || step.phase.title;
-    return `
-      <button class="group-card ${isComplete ? "complete" : ""} ${isActive ? "active-group" : ""}"
-        data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
-        <div class="group-card-num">${idx + 1}</div>
-        <div class="group-card-title">${escapeHtml(title)}</div>
-        <div class="group-card-footer">
-          <span class="group-card-progress">${progress.done}/${progress.total}</span>
-          <div class="group-card-bar"><div class="group-card-fill" style="width:${progress.percent}%"></div></div>
-        </div>
-      </button>
-    `;
-  }).join("");
+  // Build consecutive-category sections for visual separation
+  const sections = [];
+  steps.forEach((step, idx) => {
+    const cat = step.phase.categoryId;
+    if (!sections.length || sections[sections.length - 1].cat !== cat) {
+      sections.push({ cat, items: [] });
+    }
+    sections[sections.length - 1].items.push({ step, idx });
+  });
+
+  const hasMixed = sections.length > 1;
+  const offSections = sections.filter(s => s.cat === "offshore");
+
+  const getSectionLabel = (sec, si) => {
+    if (!hasMixed) return null;
+    if (sec.cat === "offshore") {
+      if (offSections.length === 1) return "OFFSHORE";
+      const n = sections.slice(0, si + 1).filter(s => s.cat === "offshore").length;
+      return `OFFSHORE — PERNA ${n}`;
+    }
+    if (si === 0) return "SAÍDA NORMAL";
+    if (si === sections.length - 1) return "RETORNO NORMAL";
+    return "NORMAL";
+  };
+
+  let cardsHtml = "";
+  sections.forEach((sec, si) => {
+    const secLabel = getSectionLabel(sec, si);
+    if (secLabel) {
+      const cls = sec.cat === "offshore" ? "section-offshore" : "section-normal";
+      cardsHtml += `<div class="groups-section-label ${cls}">${secLabel}</div>`;
+    }
+    sec.items.forEach(({ step, idx }) => {
+      const progress = getPhaseProgress(step.phase, state, step.stepId);
+      const isActive = step.stepId === state.selectedStepId;
+      const title = step.label || step.phase.title;
+      const offCls = sec.cat === "offshore" ? " offshore-card" : "";
+      cardsHtml += `
+        <button class="group-card${progress.isComplete ? " complete" : ""}${isActive ? " active-group" : ""}${offCls}"
+          data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
+          <div class="group-card-num">${idx + 1}</div>
+          <div class="group-card-title">${escapeHtml(title)}</div>
+          <div class="group-card-footer">
+            <span class="group-card-progress">${progress.done}/${progress.total}</span>
+            <div class="group-card-bar"><div class="group-card-fill" style="width:${progress.percent}%"></div></div>
+          </div>
+        </button>
+      `;
+    });
+  });
 
   return `
     <div class="groups-page">
@@ -652,7 +685,7 @@ function renderGroupsPage() {
           ${doneCount}/${steps.length} grupos concluídos
         </div>
       </header>
-      <div class="groups-grid">${cards}</div>
+      <div class="groups-grid">${cardsHtml}</div>
       ${renderBottomBar()}
     </div>
   `;
@@ -727,6 +760,22 @@ function renderChecklistPage() {
   const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
   const reg = state.flightRegistration || settings.registration;
   const label = getProfileLabel();
+  const step = selectedStep();
+  const progress = step ? getPhaseProgress(step.phase, state, step.stepId) : null;
+  const groupTitle = step ? (step.label || step.phase.title) : "";
+
+  const completionBanner = progress?.isComplete ? `
+    <div class="group-complete-banner">
+      <div class="gcb-inner">
+        <div class="gcb-check">✓</div>
+        <div class="gcb-text">
+          <div class="gcb-title">${escapeHtml(groupTitle)} — CONCLUÍDO</div>
+          <div class="gcb-sub">Avançar para o próximo grupo?</div>
+        </div>
+        <button class="gcb-btn" data-action="nav-next">Próximo →</button>
+      </div>
+    </div>
+  ` : "";
 
   return `
     <main class="app-shell checklist-view">
@@ -742,6 +791,7 @@ function renderChecklistPage() {
       <div class="checklist-wrapper">
         ${renderChecklist()}
       </div>
+      ${completionBanner}
       ${renderBottomBar()}
     </main>
   `;
