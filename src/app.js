@@ -1,5 +1,5 @@
 import { checklistData } from "./data/checklist-data.js";
-import { loadState, saveState, resetAllState } from "./checklist/storage.js";
+import { loadState, saveState, resetAllState, loadFlightLog, saveFlightLog } from "./checklist/storage.js";
 import {
   getPhaseProgress,
   getNextPendingItem,
@@ -35,6 +35,24 @@ function getValidPhaseId(phaseId) {
   return getPhaseIndex(phaseId) >= 0 ? phaseId : null;
 }
 
+function formatDuration(ms) {
+  if (!ms || ms < 0) return "—";
+  const totalMinutes = Math.round(ms / 60000);
+  if (totalMinutes < 1) return "< 1 min";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}min`;
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+
 // On first load, don't force a phase — mission selector handles it
 state.selectedPhaseId = getValidPhaseId(state.selectedPhaseId);
 
@@ -57,7 +75,6 @@ function persist(nextState) {
 function selectPhase(phaseId) {
   const phase = checklistData.phases.find(item => item.id === phaseId);
   if (!phase) return;
-
   const active = getNextPendingItem(phase, state);
   persist({
     ...state,
@@ -73,10 +90,43 @@ function handleSelectFlightType(type) {
   persist({
     ...state,
     flightType: type,
+    completedAt: null,
     selectedPhaseId: firstPhase?.id || null,
     activeItemId: firstPhase?.items[0]?.id || null,
-    flightSessionStartedAt: state.flightSessionStartedAt || new Date().toISOString()
+    flightSessionStartedAt: new Date().toISOString()
   });
+}
+
+function isMissionComplete() {
+  const filtered = getFilteredPhases();
+  return filtered.length > 0 && filtered.every(phase => getPhaseProgress(phase, state).isComplete);
+}
+
+function getMissionStats() {
+  const filtered = getFilteredPhases();
+  const totalGroups = filtered.length;
+  const totalItems = filtered.reduce((sum, phase) =>
+    sum + phase.items.filter(i => i.required !== false).length, 0);
+  const startedAt = state.flightSessionStartedAt;
+  const completedAt = new Date().toISOString();
+  const durationMs = startedAt ? new Date(completedAt) - new Date(startedAt) : 0;
+  return { totalGroups, totalItems, startedAt, completedAt, durationMs };
+}
+
+function handleCompleteFlight() {
+  const stats = getMissionStats();
+  const log = loadFlightLog();
+  log.unshift({
+    id: stats.completedAt,
+    flightType: state.flightType,
+    startedAt: stats.startedAt,
+    completedAt: stats.completedAt,
+    durationMs: stats.durationMs,
+    totalGroups: stats.totalGroups,
+    totalItems: stats.totalItems
+  });
+  saveFlightLog(log.slice(0, 30));
+  persist({ ...state, completedAt: stats.completedAt });
 }
 
 function handleToggleItem(itemId) {
@@ -105,6 +155,10 @@ function handleResetAll() {
   persist(state);
 }
 
+function handleReviewChecklist() {
+  persist({ ...state, completedAt: null });
+}
+
 function scrollToItem(itemId) {
   requestAnimationFrame(() => {
     document.querySelector(`[data-item-id="${itemId}"]`)?.scrollIntoView({
@@ -118,13 +172,7 @@ function handleGoNextPending() {
   const phase = selectedPhase();
   const next = getNextPendingItem(phase, state);
   if (!next) return;
-
-  persist({
-    ...state,
-    selectedPhaseId: phase.id,
-    activeItemId: next.id
-  });
-
+  persist({ ...state, selectedPhaseId: phase.id, activeItemId: next.id });
   scrollToItem(next.id);
 }
 
@@ -156,7 +204,12 @@ function handleNextGroup() {
   const filtered = getFilteredPhases();
   const currentIndex = filtered.findIndex(p => p.id === phase.id);
   const next = filtered[currentIndex + 1];
-  if (!next) return;
+
+  if (!next) {
+    handleCompleteFlight();
+    return;
+  }
+
   selectPhase(next.id);
 }
 
@@ -245,6 +298,68 @@ function renderMissionSelector() {
   `;
 }
 
+function renderCompletion() {
+  const filtered = getFilteredPhases();
+  const totalGroups = filtered.length;
+  const totalItems = filtered.reduce((sum, p) =>
+    sum + p.items.filter(i => i.required !== false).length, 0);
+  const durationMs = state.flightSessionStartedAt && state.completedAt
+    ? new Date(state.completedAt) - new Date(state.flightSessionStartedAt)
+    : 0;
+  const missionTitle = state.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST";
+
+  const log = loadFlightLog();
+  const logRows = log.slice(0, 6).map((entry, i) => {
+    const typeLabel = entry.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
+    const isCurrent = i === 0;
+    return `
+      <div class="log-entry ${isCurrent ? "current-entry" : ""} ${entry.flightType === "offshore" ? "offshore-entry" : ""}">
+        <span class="log-type">${typeLabel}</span>
+        <span class="log-date">${formatDate(entry.completedAt)}</span>
+        <span class="log-duration">${formatDuration(entry.durationMs)}</span>
+        <span class="log-items">${entry.totalItems} itens</span>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="completion-screen">
+      <div class="completion-inner">
+        <div class="completion-icon">✓</div>
+        <h1 class="completion-title">VOO CONCLUÍDO</h1>
+        <div class="completion-meta">${escapeHtml(missionTitle)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${formatDate(state.completedAt)}</div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">${formatDuration(durationMs)}</div>
+            <div class="stat-label">Duração</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${totalGroups}/${totalGroups}</div>
+            <div class="stat-label">Grupos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${totalItems}</div>
+            <div class="stat-label">Itens cumpridos</div>
+          </div>
+        </div>
+
+        ${log.length > 0 ? `
+          <div class="flight-log">
+            <div class="flight-log-title">Histórico de voos</div>
+            ${logRows}
+          </div>
+        ` : ""}
+
+        <div class="completion-actions">
+          <button class="action-btn" data-action="review-checklist">Rever checklist</button>
+          <button class="action-btn primary" data-action="reset-all">Novo voo</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderChecklist() {
   const phase = selectedPhase();
   if (!phase) {
@@ -258,6 +373,7 @@ function renderChecklist() {
   const isLast = !inSequence || filteredIndex === filtered.length - 1;
   const progress = getPhaseProgress(phase, state);
   const nextPending = getNextPendingItem(phase, state);
+  const isLastComplete = inSequence && isLast && progress.isComplete;
 
   const rows = phase.items.map((item, index) => {
     const status = getItemStatus(phase, item, state);
@@ -278,7 +394,10 @@ function renderChecklist() {
     `;
   }).join("");
 
-  const nextGroupLabel = isLast ? "Fim da checklist" : "Próximo grupo";
+  const nextGroupLabel = isLastComplete ? "Encerrar voo" : isLast ? "Fim da checklist" : "Próximo grupo";
+  const nextGroupClass = isLastComplete ? "action-btn primary" : "action-btn advance";
+  const nextGroupDisabled = !inSequence || (isLast && !isLastComplete);
+
   const resumeText = nextPending
     ? `Próximo item pendente: <strong>${escapeHtml(nextPending.challenge)}</strong> — ${escapeHtml(nextPending.response)}`
     : `Grupo completo. Conferir visualmente e avançar para o próximo grupo.`;
@@ -314,7 +433,7 @@ function renderChecklist() {
       <div class="actions sticky-actions">
         <button class="action-btn" data-action="previous-group" ${isFirst ? "disabled" : ""}>Grupo anterior</button>
         <button class="action-btn primary" data-action="next-pending" ${!nextPending ? "disabled" : ""}>Ir ao próximo pendente</button>
-        <button class="action-btn advance" data-action="next-group" ${isLast ? "disabled" : ""}>${nextGroupLabel}</button>
+        <button class="${nextGroupClass}" data-action="next-group" ${nextGroupDisabled ? "disabled" : ""}>${nextGroupLabel}</button>
         <button class="action-btn warn" data-action="reset-phase">Reset grupo</button>
         <button class="action-btn danger" data-action="reset-all">Reset voo</button>
       </div>
@@ -329,9 +448,17 @@ function render() {
     return;
   }
 
+  if (state.completedAt) {
+    app.innerHTML = renderCompletion();
+    bindEvents();
+    return;
+  }
+
   const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
   const flightTypeLabel = state.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
   const filtered = getFilteredPhases();
+  const completedGroups = filtered.filter(p => getPhaseProgress(p, state).isComplete).length;
+  const missionPercent = filtered.length ? Math.round((completedGroups / filtered.length) * 100) : 0;
   const currentIndex = filtered.findIndex(p => p.id === state.selectedPhaseId);
 
   app.innerHTML = `
@@ -347,8 +474,13 @@ function render() {
       <section class="layout">
         <aside class="card nav-card">
           <div class="card-header">
-            <h1 class="card-title">Grupos</h1>
-            <div class="card-subtitle">O botão Próximo grupo só avança depois de cumprir todos os itens.</div>
+            <div class="nav-header-row">
+              <h1 class="card-title">Grupos</h1>
+              <span class="mission-progress-text">${completedGroups}/${filtered.length}</span>
+            </div>
+            <div class="progress-bar nav-progress-bar" aria-label="Progresso da missão">
+              <div class="progress-fill" style="width:${missionPercent}%"></div>
+            </div>
           </div>
           <div class="phase-list">${renderPhaseList()}</div>
         </aside>
@@ -384,19 +516,11 @@ function bindEvents() {
       }, 700);
     });
 
-    button.addEventListener("pointerup", () => {
-      window.clearTimeout(longPressTimer);
-    });
-
-    button.addEventListener("pointerleave", () => {
-      window.clearTimeout(longPressTimer);
-    });
+    button.addEventListener("pointerup", () => window.clearTimeout(longPressTimer));
+    button.addEventListener("pointerleave", () => window.clearTimeout(longPressTimer));
 
     button.addEventListener("click", event => {
-      if (longPressTriggered) {
-        event.preventDefault();
-        return;
-      }
+      if (longPressTriggered) { event.preventDefault(); return; }
       handleToggleItem(itemId);
     });
   });
@@ -410,6 +534,7 @@ function bindEvents() {
   document.querySelector("[data-action='next-group']")?.addEventListener("click", handleNextGroup);
   document.querySelector("[data-action='reset-phase']")?.addEventListener("click", handleResetPhase);
   document.querySelector("[data-action='reset-all']")?.addEventListener("click", handleResetAll);
+  document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
 }
 
 if ("serviceWorker" in navigator) {
