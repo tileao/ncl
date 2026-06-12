@@ -1,6 +1,7 @@
 const STORAGE_KEY = "aw139-checklist-state-v2-rev23";
 
 const defaultState = {
+  flightType: null,
   selectedPhaseId: null,
   activeItemId: null,
   completed: {},

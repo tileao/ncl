@@ -575,6 +575,14 @@ button {
   cursor: not-allowed;
 }
 
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(14px);
+  background: rgba(13, 20, 29, 0.94);
+}
+
 .sticky-actions {
   position: sticky;
   bottom: 0;
@@ -582,8 +590,114 @@ button {
   backdrop-filter: blur(12px);
 }
 
+.checklist-card {
+  overflow: clip;
+}
+
 .nav-card {
   align-self: start;
+}
+
+/* Mission selector */
+
+.mission-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: calc(32px + var(--safe-top)) 20px calc(32px + var(--safe-bottom));
+  background:
+    radial-gradient(circle at top left, rgba(45, 100, 160, 0.13), transparent 35%),
+    linear-gradient(180deg, #08101a 0%, var(--bg) 55%);
+}
+
+.mission-selector-inner {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.mission-selector-brand {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.mission-selector-subtitle {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mission-selector-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.mission-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: rgba(13, 20, 29, 0.92);
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.mission-btn:hover,
+.mission-btn:focus-visible {
+  background: #142033;
+  border-color: rgba(89, 167, 255, 0.55);
+  outline: 2px solid rgba(89, 167, 255, 0.25);
+}
+
+.mission-btn-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.mission-btn-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mission-btn-desc {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.mission-btn.offshore .mission-btn-label {
+  color: var(--amber);
+}
+
+.mission-btn.offshore .mission-btn-title {
+  color: var(--amber);
+}
+
+/* Active category highlight in nav */
+
+.active-category .category-row {
+  color: var(--green);
 }
 
 @media (min-width: 861px) {

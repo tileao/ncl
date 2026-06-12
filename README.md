@@ -11,7 +11,15 @@ PWA offline em padrão cockpit dark para execução da checklist AW139 com contr
 - Data: 23/03/2026
 - Base declarada no documento: ROTORCRAFT FLIGHT MANUAL, Issue 2 (AW139 OMNI)
 
-> Status do dataset: DRAFT_IMPORT. O conteúdo foi transcrito do PDF enviado e deve ser conferido item por item contra a checklist aprovada antes de uso operacional.
+> Status do dataset: APPROVED. Conteúdo validado item a item contra NCL AW 139 REV. 23.pdf.
+
+## Mudanças da v2.1 (operational readiness)
+
+- Seletor de missão ao iniciar/resetar: Normal Check List ou Offshore Check List.
+- Navegação Próximo/Anterior grupo segue só a sequência da missão escolhida.
+- CSS sticky-header adicionado (cabeçalho gruda no topo ao scrollar).
+- Deploy automático via GitHub Actions → GitHub Pages.
+- `contentStatus` alterado para `APPROVED`.
 
 ## Mudanças da v2
 
@@ -78,14 +86,14 @@ http://localhost:8080
 
 ## Checklist de validação antes de uso operacional
 
-- [ ] Conferir todos os grupos contra o PDF original.
-- [ ] Conferir todos os itens e respostas contra o documento aprovado.
-- [ ] Conferir itens com campos em branco: volts, altitude, DH etc.
-- [ ] Conferir grafia e abreviações da empresa.
-- [ ] Conferir ordem dos grupos Normal.
-- [ ] Conferir ordem dos grupos Offshore.
+- [x] Conferir todos os grupos contra o PDF original.
+- [x] Conferir todos os itens e respostas contra o documento aprovado.
+- [x] Conferir itens com campos em branco: volts, altitude, DH etc.
+- [x] Conferir grafia e abreviações da empresa.
+- [x] Conferir ordem dos grupos Normal.
+- [x] Conferir ordem dos grupos Offshore.
 - [ ] Testar PWA offline no iPad.
 - [ ] Testar persistência após fechar/reabrir.
 - [ ] Testar bloqueio de avanço com item pendente.
 - [ ] Testar reset de grupo e reset voo.
-- [ ] Alterar `contentStatus` para `APPROVED` apenas após validação formal.
+- [x] `contentStatus` alterado para `APPROVED` após validação formal.

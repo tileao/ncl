@@ -25,17 +25,26 @@ function getPhaseIndex(phaseId) {
   return checklistData.phases.findIndex(phase => phase.id === phaseId);
 }
 
-function getValidPhaseId(phaseId) {
-  return getPhaseIndex(phaseId) >= 0 ? phaseId : checklistData.phases[0]?.id || null;
+function getFilteredPhases() {
+  if (!state.flightType) return checklistData.phases;
+  return checklistData.phases.filter(p => p.categoryId === state.flightType);
 }
 
+function getValidPhaseId(phaseId) {
+  if (!phaseId) return null;
+  return getPhaseIndex(phaseId) >= 0 ? phaseId : null;
+}
+
+// On first load, don't force a phase — mission selector handles it
 state.selectedPhaseId = getValidPhaseId(state.selectedPhaseId);
 
-if (!state.selectedPhaseId) {
-  state.selectedPhaseId = checklistData.phases[0]?.id || null;
-}
-
-const selectedPhase = () => checklistData.phases.find(phase => phase.id === state.selectedPhaseId) || checklistData.phases[0];
+const selectedPhase = () => {
+  if (state.selectedPhaseId) {
+    const found = checklistData.phases.find(p => p.id === state.selectedPhaseId);
+    if (found) return found;
+  }
+  return getFilteredPhases()[0] || null;
+};
 
 function persist(nextState) {
   state = saveState({
@@ -54,6 +63,18 @@ function selectPhase(phaseId) {
     ...state,
     selectedPhaseId: phase.id,
     activeItemId: active?.id || phase.items[0]?.id || null,
+    flightSessionStartedAt: state.flightSessionStartedAt || new Date().toISOString()
+  });
+}
+
+function handleSelectFlightType(type) {
+  const phases = checklistData.phases.filter(p => p.categoryId === type);
+  const firstPhase = phases[0];
+  persist({
+    ...state,
+    flightType: type,
+    selectedPhaseId: firstPhase?.id || null,
+    activeItemId: firstPhase?.items[0]?.id || null,
     flightSessionStartedAt: state.flightSessionStartedAt || new Date().toISOString()
   });
 }
@@ -78,11 +99,9 @@ function handleResetPhase() {
 }
 
 function handleResetAll() {
-  const ok = window.confirm("Resetar todo o progresso da checklist? Use normalmente no início de novo voo/setor.");
+  const ok = window.confirm("Resetar todo o progresso e iniciar novo voo?");
   if (!ok) return;
   state = resetAllState();
-  state.selectedPhaseId = checklistData.phases[0]?.id || null;
-  state.activeItemId = checklistData.phases[0]?.items[0]?.id || null;
   persist(state);
 }
 
@@ -110,13 +129,16 @@ function handleGoNextPending() {
 }
 
 function handlePreviousGroup() {
-  const currentIndex = getPhaseIndex(state.selectedPhaseId);
+  const filtered = getFilteredPhases();
+  const currentIndex = filtered.findIndex(p => p.id === state.selectedPhaseId);
   if (currentIndex <= 0) return;
-  selectPhase(checklistData.phases[currentIndex - 1].id);
+  selectPhase(filtered[currentIndex - 1].id);
 }
 
 function handleNextGroup() {
   const phase = selectedPhase();
+  if (!phase) return;
+
   const progress = getPhaseProgress(phase, state);
   const nextPending = getNextPendingItem(phase, state);
 
@@ -131,8 +153,9 @@ function handleNextGroup() {
     return;
   }
 
-  const currentIndex = getPhaseIndex(phase.id);
-  const next = checklistData.phases[currentIndex + 1];
+  const filtered = getFilteredPhases();
+  const currentIndex = filtered.findIndex(p => p.id === phase.id);
+  const next = filtered[currentIndex + 1];
   if (!next) return;
   selectPhase(next.id);
 }
@@ -157,6 +180,7 @@ function renderPhaseList() {
 
   return categories.map(([categoryId, categoryTitle]) => {
     const summary = getCategorySummary(categoryId);
+    const isActiveCategory = state.flightType === categoryId;
     const buttons = checklistData.phases
       .filter(phase => phase.categoryId === categoryId)
       .map(phase => {
@@ -177,7 +201,7 @@ function renderPhaseList() {
       }).join("");
 
     return `
-      <section class="phase-category">
+      <section class="phase-category ${isActiveCategory ? "active-category" : ""}">
         <div class="category-row">
           <span>${escapeHtml(categoryTitle)}</span>
           <strong>${summary.complete}/${summary.total}</strong>
@@ -194,17 +218,46 @@ function renderTags(item) {
   return `<span class="tag-row">${tags.map(tag => `<span class="item-tag">${escapeHtml(tag)}</span>`).join("")}</span>`;
 }
 
+function renderMissionSelector() {
+  const normalCount = checklistData.phases.filter(p => p.categoryId === "normal").length;
+  const offshoreCount = checklistData.phases.filter(p => p.categoryId === "offshore").length;
+
+  return `
+    <div class="mission-selector">
+      <div class="mission-selector-inner">
+        <div class="mission-selector-brand">
+          <div class="brand-title">${escapeHtml(checklistData.title)}</div>
+          <div class="mission-selector-subtitle">${escapeHtml(checklistData.revision.source)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)}</div>
+        </div>
+        <div class="mission-selector-title">Selecionar missão</div>
+        <button class="mission-btn" data-action="select-flight-type" data-flight-type="normal">
+          <span class="mission-btn-label">Normal</span>
+          <span class="mission-btn-title">NORMAL CHECK LIST</span>
+          <span class="mission-btn-desc">${normalCount} grupos — COCKPIT CHECKS até AFTER ROTOR STOPS</span>
+        </button>
+        <button class="mission-btn offshore" data-action="select-flight-type" data-flight-type="offshore">
+          <span class="mission-btn-label">Offshore</span>
+          <span class="mission-btn-title">OFFSHORE CHECK LIST</span>
+          <span class="mission-btn-desc">${offshoreCount} grupos — BEFORE DESCENT até AFTER TAKE OFF</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderChecklist() {
   const phase = selectedPhase();
   if (!phase) {
     return `<div class="empty-state">Nenhuma checklist carregada.</div>`;
   }
 
-  const phaseIndex = getPhaseIndex(phase.id);
+  const filtered = getFilteredPhases();
+  const filteredIndex = filtered.findIndex(p => p.id === phase.id);
+  const inSequence = filteredIndex !== -1;
+  const isFirst = !inSequence || filteredIndex === 0;
+  const isLast = !inSequence || filteredIndex === filtered.length - 1;
   const progress = getPhaseProgress(phase, state);
   const nextPending = getNextPendingItem(phase, state);
-  const isFirst = phaseIndex === 0;
-  const isLast = phaseIndex === checklistData.phases.length - 1;
 
   const rows = phase.items.map((item, index) => {
     const status = getItemStatus(phase, item, state);
@@ -230,12 +283,16 @@ function renderChecklist() {
     ? `Próximo item pendente: <strong>${escapeHtml(nextPending.challenge)}</strong> — ${escapeHtml(nextPending.response)}`
     : `Grupo completo. Conferir visualmente e avançar para o próximo grupo.`;
 
+  const groupKicker = inSequence
+    ? `Grupo ${filteredIndex + 1}/${filtered.length} • ${escapeHtml(phase.categoryTitle)} • PDF p.${escapeHtml(phase.pdfPage)}`
+    : `Fora da sequência • ${escapeHtml(phase.categoryTitle)} • PDF p.${escapeHtml(phase.pdfPage)}`;
+
   return `
     <div class="card checklist-card">
       <div class="card-header sticky-header">
         <div class="checklist-header-main">
           <div>
-            <div class="page-kicker">Grupo ${phaseIndex + 1}/${checklistData.phases.length} • ${escapeHtml(phase.categoryTitle)} • PDF p.${escapeHtml(phase.pdfPage)}</div>
+            <div class="page-kicker">${groupKicker}</div>
             <h2 class="card-title">${escapeHtml(phase.title)}</h2>
           </div>
           <div class="progress-block">
@@ -266,15 +323,23 @@ function renderChecklist() {
 }
 
 function render() {
+  if (!state.flightType) {
+    app.innerHTML = renderMissionSelector();
+    bindEvents();
+    return;
+  }
+
   const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
-  const currentIndex = getPhaseIndex(state.selectedPhaseId);
+  const flightTypeLabel = state.flightType === "offshore" ? "OFFSHORE" : "NORMAL";
+  const filtered = getFilteredPhases();
+  const currentIndex = filtered.findIndex(p => p.id === state.selectedPhaseId);
 
   app.innerHTML = `
     <main class="app-shell">
       <header class="topbar">
         <div class="brand">
           <div class="brand-title">${escapeHtml(checklistData.title)}</div>
-          <div class="brand-subtitle">PWA offline • um grupo por página • avanço bloqueado se houver item pendente</div>
+          <div class="brand-subtitle">PWA offline • ${escapeHtml(flightTypeLabel)} • avanço bloqueado se houver item pendente</div>
         </div>
         <div class="badge ${statusClass}">${escapeHtml(checklistData.contentStatus)}</div>
       </header>
@@ -283,7 +348,7 @@ function render() {
         <aside class="card nav-card">
           <div class="card-header">
             <h1 class="card-title">Grupos</h1>
-            <div class="card-subtitle">Cada grupo do PDF virou uma página. O botão Próximo grupo só avança depois de cumprir todos os itens.</div>
+            <div class="card-subtitle">O botão Próximo grupo só avança depois de cumprir todos os itens.</div>
           </div>
           <div class="phase-list">${renderPhaseList()}</div>
         </aside>
@@ -293,7 +358,7 @@ function render() {
 
       <div class="footer-note">
         Fonte: ${escapeHtml(checklistData.revision.source)} • Revisão: ${escapeHtml(checklistData.revision.sourceRevision)} • Data: ${escapeHtml(checklistData.revision.effectiveDate)} • ${escapeHtml(checklistData.revision.sourceBasis)} • Dataset: ${escapeHtml(checklistData.revision.datasetVersion)}.
-        <br />Página atual: ${currentIndex + 1}/${checklistData.phases.length}. Toque normal marca/desmarca. Toque longo em uma linha marca ATENÇÃO / NÃO CUMPRIDO e mantém o item pendente.
+        <br />Sequência: ${escapeHtml(flightTypeLabel)} • Grupo ${currentIndex >= 0 ? currentIndex + 1 : "?"} de ${filtered.length}. Toque normal marca/desmarca. Toque longo em uma linha marca ATENÇÃO / NÃO CUMPRIDO.
       </div>
     </main>
   `;
@@ -334,6 +399,10 @@ function bindEvents() {
       }
       handleToggleItem(itemId);
     });
+  });
+
+  document.querySelectorAll("[data-action='select-flight-type']").forEach(button => {
+    button.addEventListener("click", () => handleSelectFlightType(button.dataset.flightType));
   });
 
   document.querySelector("[data-action='next-pending']")?.addEventListener("click", handleGoNextPending);
