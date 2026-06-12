@@ -16,7 +16,7 @@ let currentView = "groups"; // "groups" | "checklist"
 let showingInitial = false;
 let lastAutoScrolledId = null;
 let legPicker = null; // { profile: string, count: number } | null
-let viewMode = "cockpit"; // "cockpit" | "pdf"
+let viewMode = "pdf"; // "cockpit" | "pdf"
 
 if (state.profileId && !state.completedAt) {
   currentView = state.selectedStepId ? "checklist" : "groups";
@@ -256,7 +256,14 @@ function handleSelectProfile(profileId, params = {}) {
 }
 
 function handleHome() { showingInitial = true; legPicker = null; render(); }
-function handleShowGroups() { currentView = "groups"; render(); }
+function handleShowGroups() {
+  if (currentView === "groups") {
+    viewMode = viewMode === "pdf" ? "cockpit" : "pdf";
+  } else {
+    currentView = "groups";
+  }
+  render();
+}
 function handleContinueFlight() {
   showingInitial = false;
   currentView = state.selectedStepId ? "checklist" : "groups";
@@ -543,9 +550,9 @@ function renderBottomBar() {
         ${ICON_SEEK}
         <span class="bottom-label">Pendente</span>
       </button>
-      <button class="bottom-btn ${isGroupsView ? "bb-active" : ""}" data-action="nav-groups" title="Grupos">
+      <button class="bottom-btn ${isGroupsView ? "bb-active" : ""}" data-action="nav-groups" title="Grupos — toque para alternar PDF/Cockpit">
         ${ICON_GRID}
-        <span class="bottom-label">Grupos</span>
+        <span class="bottom-label">Grupos${isGroupsView ? (viewMode === "pdf" ? " ·PDF" : " ·CKP") : ""}</span>
       </button>
       <button class="bottom-btn bb-next" data-action="nav-next" title="Próximo grupo">
         ${ICON_NEXT}
@@ -744,7 +751,6 @@ function renderGroupsPage() {
             ${doneCount}/${steps.length} grupos concluídos
           </div>
         </div>
-        ${renderViewToggle()}
       </header>
       <div class="groups-grid">${cardsHtml}</div>
       ${renderBottomBar()}
@@ -1051,7 +1057,6 @@ function renderGroupsPagePDF() {
           <div class="pdf-doc-mission">${escapeHtml(label)}</div>
           <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}Toque numa seção para abrir</div>
         </div>
-        ${renderViewToggle()}
       </div>
       <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + 20px)">
         ${pagesHtml}
@@ -1263,11 +1268,6 @@ function bindEvents() {
 
   document.querySelectorAll("[data-action='export-pdf']").forEach(btn => {
     btn.addEventListener("click", () => generateFlightPDF(btn.dataset.flightId));
-  });
-
-  document.querySelector("[data-action='toggle-view']")?.addEventListener("click", () => {
-    viewMode = viewMode === "cockpit" ? "pdf" : "cockpit";
-    render();
   });
 
   document.querySelector("[data-action='nav-home']")?.addEventListener("click", handleHome);
