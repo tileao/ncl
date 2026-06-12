@@ -1878,6 +1878,7 @@ button {
 .pdfd-item.completed .pdfd-dots { border-color: #7fb89a; }
 .pdfd-item.completed .pdfd-state-sym { color: #1a7f4e; }
 .pdfd-item.skipped { color: #b06020; }
+.pdfd-item.skipped .pdfd-dots { border-color: #c88060; }
 .pdfd-item.skipped .pdfd-state-sym { color: #d07820; }
 
 /* Highlights reproduced from the company PDF */
@@ -1971,156 +1972,169 @@ button {
 
 /* ─── Checklist detail — PDF table with dotted leaders ───────────────────── */
 
-.pdf-section-block {
-  margin: 10px;
-  border: 1px solid #bbb;
-  border-radius: 2px;
-  overflow: hidden;
-  background: #fff;
+/* ── Detail view topbar additions ────────────────────────────── */
+.pdf-topbar-detail {
+  gap: 6px;
 }
 
-.pdf-section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 12px;
-  border-bottom: 1px solid #bbb;
+.pdfd-back-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.pdfd-back-btn:hover,
+.pdfd-back-btn:focus-visible { background: rgba(255,255,255,0.08); outline: none; }
+
+.pdfd-detail-prog {
   font-size: 12px;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  color: var(--amber);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #000;
-  background: #fff;
 }
 
-.pdf-section-count {
-  font-size: 11px;
-  font-weight: 900;
-  color: #777;
+/* ── PDF cutout — the document excerpt wrapper ───────────────── */
+.pdfd-cutout {
+  margin: 10px 8px 16px;
+  background: #fff;
+  border: 1px solid #aaa;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06);
+  font-family: Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(10px, 3.5vw, 14px);
+  color: #000;
+}
+
+.pdfd-cutout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid #bbb;
+  background: #ddd;
+}
+
+.pdfd-cutout-logo {
+  height: 2em;
+  width: auto;
+  display: block;
   flex-shrink: 0;
 }
 
-.pdf-prog-bar {
-  height: 3px;
-  background: #e8e8e8;
+.pdfd-cutout-doctitle {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85em;
+  color: #000080;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.pdf-prog-fill {
-  height: 100%;
-  background: #c8a05a;
-  transition: width 160ms ease;
+.pdfd-cutout-page {
+  flex-shrink: 0;
+  font-size: 0.78em;
+  color: #000080;
+  font-weight: 700;
+  border: 1px solid #000;
+  padding: 0.1em 0.4em;
+  background: #ddd;
 }
 
-.pdf-items-list {
-  display: flex;
-  flex-direction: column;
+/* The section inside the cutout — no extra margin */
+.pdfd-cutout-sec {
+  margin-bottom: 0;
+  cursor: default;
+  pointer-events: none;
 }
 
-/* Item rows — tappable, dotted leader format */
-.pdf-item-row {
+.pdfd-cutout-sec .pdfd-sec-hdr,
+.pdfd-cutout-sec .pdfd-sub-hdr {
+  pointer-events: none;
+}
+
+/* Make item rows inside cutout tappable */
+.pdfd-item-tap {
   width: 100%;
-  display: flex;
-  align-items: baseline;
-  padding: 5px 10px;
-  background: #fff;
   border: none;
-  border-top: 1px solid #f0ece4;
-  color: #000;
+  background: transparent;
+  text-align: left;
   cursor: pointer;
+  font: inherit;
+  padding: 0.05em 0.5em;
+  min-height: 2.8em;
+  display: flex;
+  align-items: center;
   touch-action: pan-y;
   user-select: none;
-  min-height: 34px;
+  border-top: 1px solid rgba(0,0,0,0.07);
+  pointer-events: all;
   transition: background 80ms;
 }
 
-.pdf-item-row:hover,
-.pdf-item-row:focus-visible { background: #f8f8f8; outline: none; }
-.pdf-item-row.completed     { background: #f4fcf8; }
-.pdf-item-row.active        { background: #fffce6; border-left: 3px solid #b08020; padding-left: 7px; }
-.pdf-item-row.skipped       { background: #fff8f2; border-left: 3px solid #d07820; padding-left: 7px; }
+.pdfd-item-tap:first-of-type { border-top: none; }
 
-/* Callout items — cyan highlight like the PDF */
-.pdf-item-row.pdf-item-callout             { background: #e4f0ff; }
-.pdf-item-row.pdf-item-callout.completed   { background: #e4f8f0; }
-.pdf-item-row.pdf-item-callout.active      { background: #fffce6; }
+.pdfd-item-tap:hover,
+.pdfd-item-tap:focus-visible { background: rgba(0,0,0,0.035); outline: none; }
 
-.pdf-item-status {
-  flex-shrink: 0;
-  width: 14px;
-  font-size: 10px;
-  font-weight: 900;
-  text-align: center;
-  color: transparent;
-  margin-right: 2px;
+/* State: active item — left amber bar, faint warm tint */
+.pdfd-item-tap.active {
+  background: rgba(255, 200, 60, 0.10);
+  box-shadow: inset 3px 0 0 #c8a030;
 }
 
-.pdf-item-row.completed .pdf-item-status { color: #28a060; }
-.pdf-item-row.active    .pdf-item-status { color: #b07820; }
-.pdf-item-row.skipped   .pdf-item-status { color: #d07820; }
+.pdfd-item-tap.active .pdfd-name  { color: #6b4000; }
+.pdfd-item-tap.active .pdfd-dots  { border-color: #c8a030; }
+.pdfd-item-tap.active .pdfd-resp  { color: #6b4000; font-weight: 700; }
+.pdfd-item-tap.active .pdfd-state-sym { color: #b07820; }
 
-.pdf-item-name {
-  flex-shrink: 1;
-  flex-grow: 0;
-  font-size: clamp(11px, 2vw, 13px);
-  font-weight: 400;
+/* State: completed — green text, no background change */
+.pdfd-item-tap.completed .pdfd-name  { color: #1a7f4e; text-decoration: line-through; text-decoration-color: #7fbf9a; }
+.pdfd-item-tap.completed .pdfd-dots  { border-color: #7fbf9a; }
+.pdfd-item-tap.completed .pdfd-resp  { color: #1a7f4e; }
+.pdfd-item-tap.completed .pdfd-state-sym { color: #1a7f4e; }
+
+/* State: skipped */
+.pdfd-item-tap.skipped .pdfd-name  { color: #a04010; }
+.pdfd-item-tap.skipped .pdfd-dots  { border-color: #c88060; }
+.pdfd-item-tap.skipped .pdfd-resp  { color: #a04010; }
+.pdfd-item-tap.skipped .pdfd-state-sym { color: #d07820; }
+
+/* Special highlight rows as tappable buttons */
+.pdfd-item-tap.pdfd-memory {
+  min-height: 2.4em;
+  align-items: center;
+  padding: 0.2em 0.5em;
+}
+
+.pdfd-item-tap.pdfd-yellowblock {
+  min-height: unset;
+  align-items: flex-start;
+  padding: 0.2em 0.5em;
+  white-space: normal;
+}
+
+.pdfd-item-tap.pdfd-cyanwrap { pointer-events: all; }
+
+/* Cutout footer */
+.pdfd-cutout-footer {
+  padding: 0.3em 0.6em;
+  border-top: 1px solid #bbb;
+  background: #bfbfbf;
+  font-size: 0.72em;
+  font-weight: 700;
+  color: #000080;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #000;
-  max-width: 55%;
-}
-
-.pdf-item-row.completed .pdf-item-name { color: #28a060; }
-.pdf-item-row.active    .pdf-item-name { color: #7a4e00; }
-.pdf-item-row.skipped   .pdf-item-name { color: #b06020; }
-
-.pdf-item-bullet {
-  font-size: 9px;
-  margin-right: 2px;
-  color: #444;
-}
-
-/* Dotted leader line */
-.pdf-item-dots {
-  flex: 1;
-  min-width: 8px;
-  border-bottom: 1px dotted #999;
-  margin: 0 3px 0.22em;
-  align-self: flex-end;
-}
-
-.pdf-item-row.completed .pdf-item-dots { border-color: #80c898; }
-.pdf-item-row.active    .pdf-item-dots { border-color: #c8a040; }
-.pdf-item-row.skipped   .pdf-item-dots { border-color: #d0a080; }
-
-.pdf-item-response {
-  flex-shrink: 0;
-  font-size: clamp(10px, 1.8vw, 12px);
-  font-weight: 400;
-  color: #222;
-  text-align: right;
-  white-space: nowrap;
-  text-transform: uppercase;
-  max-width: 42%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pdf-item-row.completed .pdf-item-response { color: #28a060; }
-.pdf-item-row.active    .pdf-item-response { color: #7a4e00; font-weight: 700; }
-.pdf-item-row.skipped   .pdf-item-response { color: #b06020; }
-
-/* Footer strip (revision info, matches PDF footer) */
-.pdf-footer-strip {
-  margin: 6px 10px 4px;
-  padding: 5px 8px;
-  border-top: 1px solid #ccc;
-  font-size: 9px;
-  color: #888;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
