@@ -770,6 +770,14 @@ function renderInitialScreen() {
             <span class="mission-btn-desc">Tudo onshore · 1 toque</span>
           </button>
 
+          <div class="mission-btn mission-multi offshore">
+            <span class="mission-btn-label">Normal + Offshore</span>
+            <div class="mission-legs">
+              <span class="mission-legs-label">Pousos offshore</span>
+              ${renderLegButtons("normal_offshore", "offshoreLegs", 5)}
+            </div>
+          </div>
+
           <div class="mission-btn mission-builder${flightBuilder ? " mission-builder-open" : ""}">
             <div class="fb-header">
               <span class="mission-btn-label">Configurar voo</span>
