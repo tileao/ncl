@@ -767,7 +767,7 @@ function renderInitialScreen() {
 
           <button class="mission-btn" data-action="select-profile" data-profile="normal">
             <span class="mission-btn-label">Normal</span>
-            <span class="mission-btn-desc">Tudo onshore · 1 toque</span>
+            <span class="mission-btn-desc">Partida e pouso onshore</span>
           </button>
 
           <div class="mission-btn mission-multi offshore">
