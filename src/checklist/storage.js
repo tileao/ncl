@@ -6,6 +6,7 @@ const defaultState = {
   profileId: null,       // "normal" | "offshore" | "normal_offshore" | "normal_stops"
   profileParams: {},     // { offshoreLegs: 1 } or { stops: 1 }
   flightRegistration: "",
+  flightRemarks: "",
   selectedStepId: null,
   activeItemId: null,
   completed: {},
