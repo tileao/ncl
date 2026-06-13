@@ -1573,7 +1573,6 @@ function bindEvents() {
   document.querySelectorAll("[data-action='mark-time']").forEach(btn =>
     btn.addEventListener("click", () => handleMarkTime(btn.dataset.marker))
   );
-
   const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
 
   document.querySelector("[data-action='fb-open']")?.addEventListener("click", () => {
@@ -1622,5 +1621,11 @@ if ("serviceWorker" in navigator) {
       .catch(err => console.warn("Service worker registration failed", err));
   });
 }
+
+// Global delegation for mark-time — works even when checklist re-renders
+app.addEventListener("click", e => {
+  const btn = e.target.closest("[data-action='mark-time']");
+  if (btn) handleMarkTime(btn.dataset.marker);
+});
 
 render();
