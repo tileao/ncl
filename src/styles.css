@@ -2493,6 +2493,8 @@ button {
   color: var(--amber);
   padding: 0 12px;
   gap: 8px;
+  pointer-events: all;
+  touch-action: manipulation;
 }
 
 .timing-tap-label {
