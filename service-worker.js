@@ -1,4 +1,4 @@
-const CACHE_NAME = "aw139-checklist-v2.1-rev23-b35";
+const CACHE_NAME = "aw139-checklist-v2.1-rev23-b36";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -29,16 +29,24 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
+// Network-first: always try to fetch fresh code when online, fall back to
+// cache when offline (e.g. in flight). This guarantees pushed fixes reach
+// the device instead of being shadowed by a stale cached app.js.
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
-      }).catch(() => caches.match("./index.html"));
-    })
+      })
+      .catch(() =>
+        caches.match(event.request).then(cached => cached || caches.match("./index.html"))
+      )
   );
 });
