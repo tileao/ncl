@@ -226,6 +226,8 @@ function handleSelectProfile(profileId, params = {}) {
   legPicker = null;
   const regInput = document.getElementById("reg-input");
   const registration = (regInput ? regInput.value.trim().toUpperCase() : settings.registration) || "";
+  const remarksInput = document.getElementById("remarks-input");
+  const remarks = remarksInput ? remarksInput.value.trim() : (state.flightRemarks || "");
 
   const hasProgress = state.profileId &&
     Object.values(state.completed || {}).some(a => a.length > 0);
@@ -248,6 +250,7 @@ function handleSelectProfile(profileId, params = {}) {
     profileId,
     profileParams: params,
     flightRegistration: registration,
+    flightRemarks: remarks,
     selectedStepId: first?.stepId || null,
     activeItemId: first?.phase.items[0]?.id || null,
     completed: {},
@@ -327,6 +330,7 @@ function handleCompleteFlight() {
     profileParams: state.profileParams || {},
     flightType: state.profileId === "offshore" ? "offshore" : "normal",
     registration: state.flightRegistration || settings.registration || "",
+    remarks: state.flightRemarks || "",
     startedAt: stats.startedAt,
     completedAt: stats.completedAt,
     durationMs: stats.durationMs,
@@ -518,6 +522,7 @@ td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-hei
     <span><strong>Matrícula:</strong> ${entry.registration || "—"}</span>
     <span><strong>Data:</strong> ${formatDate(entry.completedAt)}</span>
     <span><strong>Duração:</strong> ${formatDuration(entry.durationMs)}</span>
+    ${entry.remarks ? `<span><strong>Obs.:</strong> ${escapeHtml(entry.remarks)}</span>` : ""}
     <span><strong>Grupos:</strong> ${doneGroups}/${entry.totalGroups}</span>
     <span><strong>Itens:</strong> ${doneItems}/${entry.totalItems}</span>
     <span><strong>Rev.:</strong> ${checklistData.revision.sourceRevision} (${checklistData.revision.effectiveDate})</span>
@@ -629,6 +634,16 @@ function renderInitialScreen() {
             maxlength="8"
             autocomplete="off"
             autocapitalize="characters"
+            spellcheck="false">
+        </div>
+
+        <div class="reg-field">
+          <label class="reg-label" for="remarks-input">Observações</label>
+          <input type="text" id="remarks-input" class="reg-input remarks-input"
+            value="${escapeHtml(state.flightRemarks || '')}"
+            placeholder="Nº do voo, rota…"
+            maxlength="60"
+            autocomplete="off"
             spellcheck="false">
         </div>
 
@@ -907,6 +922,7 @@ function renderCompletion() {
         <h1 class="completion-title">VOO CONCLUÍDO</h1>
         <div class="completion-meta">
           ${reg ? `<strong>${escapeHtml(reg)}</strong> • ` : ""}${escapeHtml(label)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${formatDate(state.completedAt)}
+          ${state.flightRemarks ? `<br><span class="completion-remarks">${escapeHtml(state.flightRemarks)}</span>` : ""}
         </div>
         <div class="stats-grid">
           <div class="stat-card">
