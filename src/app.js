@@ -60,7 +60,7 @@ const ICON_COCKPIT = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none
 
 function renderViewToggle() {
   const isPDF = viewMode === "pdf";
-  return `<button class="view-toggle ${isPDF ? "pdf-mode" : "cockpit-mode"}" data-action="toggle-view">${isPDF ? ICON_COCKPIT : ICON_PDF} ${isPDF ? "Cockpit" : "PDF"}</button>`;
+  return `<button class="view-toggle ${isPDF ? "pdf-mode" : "cockpit-mode"}" data-action="toggle-view">${isPDF ? ICON_COCKPIT : ICON_PDF} ${isPDF ? "PROG" : "NCL"}</button>`;
 }
 
 // ─── PDF document layout (faithful recreation of NCL AW 139 REV. 23) ────────
@@ -550,9 +550,9 @@ function renderBottomBar() {
         ${ICON_SEEK}
         <span class="bottom-label">Pendente</span>
       </button>
-      <button class="bottom-btn ${isGroupsView ? "bb-active" : ""}" data-action="nav-groups" title="Grupos — toque para alternar PDF/Cockpit">
+      <button class="bottom-btn ${isGroupsView ? "bb-active" : ""}" data-action="nav-groups" title="Grupos — toque para alternar NCL/PROG">
         ${ICON_GRID}
-        <span class="bottom-label">Grupos${isGroupsView ? (viewMode === "pdf" ? " ·PDF" : " ·CKP") : ""}</span>
+        <span class="bottom-label">Grupos${isGroupsView ? (viewMode === "pdf" ? " ·NCL" : " ·PROG") : ""}</span>
       </button>
       <button class="bottom-btn bb-next" data-action="nav-next" title="Próximo grupo">
         ${ICON_NEXT}
