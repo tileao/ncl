@@ -14,10 +14,14 @@ let state = loadState();
 let settings = loadSettings();
 if (settings.nightMode) document.body.classList.add('night');
 let currentView = "groups"; // "groups" | "checklist"
-let showingInitial = true;
+let showingInitial = false;
 let lastAutoScrolledId = null;
 let legPicker = null; // { profile: string, count: number } | null
 let viewMode = "pdf"; // "cockpit" | "pdf"
+
+if (state.profileId && !state.completedAt) {
+  currentView = state.selectedStepId ? "checklist" : "groups";
+}
 
 // ─── Utilities ─────────────────────────────────────────────────────────────
 
