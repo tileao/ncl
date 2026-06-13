@@ -17,6 +17,7 @@ let currentView = "groups"; // "groups" | "checklist"
 let showingInitial = false;
 let lastAutoScrolledId = null;
 let legPicker = null; // { profile: string, count: number } | null
+let flightBuilder = null; // { startup, stops:[{type}], final } | null
 let viewMode = "pdf"; // "cockpit" | "pdf"
 
 if (state.profileId && !state.completedAt) {
@@ -144,6 +145,53 @@ function buildMissionSteps(profileId, params = {}) {
     }
     steps.push(step(`ns_cr`, CRUISE, "CRUISE — RETORNO"));
     N_ARR.forEach((id, i) => steps.push(step(`ns_a${i}`, id)));
+
+  } else if (profileId === "custom") {
+    const startup  = params.startup || "onshore";
+    const legList  = params.stops  || [];
+    const finalDst = params.final  || "onshore";
+
+    // ── Startup ──────────────────────────────────────────────────────
+    const COMMON_START = [
+      "normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks",
+      "normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration"
+    ];
+    COMMON_START.forEach((id, i) => steps.push(step(`cs${i}`, id)));
+    if (startup === "onshore") {
+      steps.push(step("cs_tx", "normal-taxing"));
+      steps.push(step("cs_bt", "normal-before-take-off"));
+      steps.push(step("cs_at", "normal-after-take-off"));
+    } else {
+      // Offshore startup: sem táxi, usa before/after takeoff offshore
+      steps.push(step("cs_bt", "offshore-before-takeoff"));
+      steps.push(step("cs_at", "offshore-after-take-off"));
+    }
+
+    // ── Escalas intermediárias ────────────────────────────────────────
+    legList.forEach((leg, li) => {
+      const cLabel = legList.length === 1 ? "CRUISE — IDA" : `CRUISE — TRECHO ${li + 1}`;
+      steps.push(step(`cl${li}_c`, CRUISE, cLabel));
+      if (leg.type === "onshore") {
+        N_INTERM.forEach((id, i) => steps.push(step(`cl${li}_a${i}`, id)));
+        steps.push(step(`cl${li}_bt`, "normal-before-take-off"));
+        steps.push(step(`cl${li}_at`, "normal-after-take-off"));
+      } else {
+        O_ARR.forEach((id, i)  => steps.push(step(`cl${li}_a${i}`, id)));
+        O_DEP.forEach((id, i)  => steps.push(step(`cl${li}_d${i}`, id)));
+      }
+    });
+
+    // ── Pouso final + shutdown ────────────────────────────────────────
+    const finalCruiseLabel = legList.length > 0 ? "CRUISE — RETORNO" : "CRUISE";
+    steps.push(step("cf_c", CRUISE, finalCruiseLabel));
+    if (finalDst === "onshore") {
+      N_ARR.forEach((id, i) => steps.push(step(`cf_a${i}`, id)));
+    } else {
+      // Offshore final: aproximação offshore → shutdown normal
+      O_ARR.forEach((id, i) => steps.push(step(`cf_a${i}`, id)));
+      steps.push(step("cf_sd0", "normal-engines-shut-down"));
+      steps.push(step("cf_sd1", "normal-after-rotor-stops"));
+    }
   }
 
   return steps;
@@ -172,6 +220,14 @@ function getProfileLabelFor(profileId, params = {}) {
     const stops = params.stops || 1;
     return stops === 1 ? "NORMAL c/ PARADA" : `NORMAL c/ ${stops} PARADAS`;
   }
+  if (profileId === "custom") {
+    const { startup = "onshore", stops = [], final: fin = "onshore" } = params;
+    const parts = [];
+    if (startup === "offshore") parts.push("partida OFF");
+    stops.forEach((s, i) => { if (s.type === "offshore") parts.push(`escala ${i + 1} OFF`); });
+    if (fin === "offshore") parts.push("pouso OFF");
+    return parts.length ? `NCL MISTO (${parts.join(" · ")})` : "NORMAL CHECK LIST";
+  }
   return "CHECK LIST";
 }
 
@@ -191,6 +247,11 @@ function getLogTypeLabel(entry) {
   if (entry.profileId === "normal_stops") {
     const stops = entry.profileParams?.stops || 1;
     return stops > 1 ? `NCL+${stops}P` : "NCL+PAR";
+  }
+  if (entry.profileId === "custom") {
+    const { startup = "onshore", stops = [], final: fin = "onshore" } = entry.profileParams || {};
+    const hasOff = startup === "offshore" || stops.some(s => s.type === "offshore") || fin === "offshore";
+    return hasOff ? "NCL MX" : "NCL";
   }
   return "NCL";
 }
@@ -233,6 +294,7 @@ function selectStep(stepId) {
 
 function handleSelectProfile(profileId, params = {}) {
   legPicker = null;
+  flightBuilder = null;
   const regInput = document.getElementById("reg-input");
   const registration = (regInput ? regInput.value.trim().toUpperCase() : settings.registration) || "";
   const remarksInput = document.getElementById("remarks-input");
@@ -601,6 +663,47 @@ function renderLegButtons(profile, paramKey, max = 5) {
   `;
 }
 
+function renderFlightBuilder() {
+  const { startup, stops, final: fin } = flightBuilder;
+
+  const tog = (action, val, current, extra = "") => {
+    const active = current === val;
+    const cls = active
+      ? (val === "offshore" ? "fb-tog fb-tog-amber" : "fb-tog fb-tog-blue")
+      : "fb-tog";
+    const label = val === "offshore" ? "Offshore" : "Onshore";
+    return `<button class="${cls}" data-action="${action}" data-val="${val}"${extra}>${label}</button>`;
+  };
+
+  const stopRows = stops.map((s, i) => `
+    <div class="fb-stop-row">
+      <span class="fb-stop-num">Escala ${i + 1}</span>
+      <div class="fb-toggles">
+        ${tog("fb-stop-type", "onshore", s.type, ` data-idx="${i}"`)}
+        ${tog("fb-stop-type", "offshore", s.type, ` data-idx="${i}"`)}
+      </div>
+      <button class="fb-del-btn" data-action="fb-del-stop" data-idx="${i}">×</button>
+    </div>
+  `).join("");
+
+  return `
+    <div class="fb-section">
+      <span class="fb-label">Acionamento</span>
+      <div class="fb-toggles">${tog("fb-startup", "onshore", startup)}${tog("fb-startup", "offshore", startup)}</div>
+    </div>
+    <div class="fb-section">
+      <span class="fb-label">Escalas intermediárias</span>
+      ${stopRows}
+      <button class="fb-add-btn" data-action="fb-add-stop">+ Escala</button>
+    </div>
+    <div class="fb-section">
+      <span class="fb-label">Pouso final · Shutdown</span>
+      <div class="fb-toggles">${tog("fb-final", "onshore", fin)}${tog("fb-final", "offshore", fin)}</div>
+    </div>
+    <button class="fb-start-btn" data-action="fb-start">Iniciar →</button>
+  `;
+}
+
 function renderInitialScreen() {
   const hasFlight = !!state.profileId && !state.completedAt;
   const log = loadFlightLog();
@@ -664,23 +767,18 @@ function renderInitialScreen() {
 
           <button class="mission-btn" data-action="select-profile" data-profile="normal">
             <span class="mission-btn-label">Normal</span>
-            <span class="mission-btn-desc">16 grupos</span>
+            <span class="mission-btn-desc">Tudo onshore · 1 toque</span>
           </button>
 
-          <div class="mission-btn mission-multi offshore">
-            <span class="mission-btn-label">Normal + Offshore</span>
-            <div class="mission-legs">
-              <span class="mission-legs-label">Pousos offshore</span>
-              ${renderLegButtons("normal_offshore", "offshoreLegs", 5)}
+          <div class="mission-btn mission-builder${flightBuilder ? " mission-builder-open" : ""}">
+            <div class="fb-header">
+              <span class="mission-btn-label">Configurar voo</span>
+              ${flightBuilder
+                ? `<button class="fb-close-btn" data-action="fb-close">✕</button>`
+                : `<button class="fb-open-btn" data-action="fb-open">Configurar →</button>`
+              }
             </div>
-          </div>
-
-          <div class="mission-btn mission-multi">
-            <span class="mission-btn-label">Normal c/ Paradas</span>
-            <div class="mission-legs">
-              <span class="mission-legs-label">Paradas intermediárias</span>
-              ${renderLegButtons("normal_stops", "stops", 4)}
-            </div>
+            ${flightBuilder ? renderFlightBuilder() : ""}
           </div>
 
         </div>
@@ -1312,6 +1410,47 @@ function bindEvents() {
   document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
   document.querySelector("[data-action='reset-all']")?.addEventListener("click", handleResetAll);
   document.querySelector("[data-action='toggle-night']")?.addEventListener("click", handleToggleNightMode);
+
+  const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
+
+  document.querySelector("[data-action='fb-open']")?.addEventListener("click", () => {
+    flightBuilder = { startup: "onshore", stops: [], final: "onshore" };
+    reRenderInitial();
+  });
+  document.querySelector("[data-action='fb-close']")?.addEventListener("click", () => {
+    flightBuilder = null; reRenderInitial();
+  });
+  document.querySelectorAll("[data-action='fb-startup']").forEach(btn =>
+    btn.addEventListener("click", () => { if (flightBuilder) flightBuilder = { ...flightBuilder, startup: btn.dataset.val }; reRenderInitial(); })
+  );
+  document.querySelectorAll("[data-action='fb-final']").forEach(btn =>
+    btn.addEventListener("click", () => { if (flightBuilder) flightBuilder = { ...flightBuilder, final: btn.dataset.val }; reRenderInitial(); })
+  );
+  document.querySelector("[data-action='fb-add-stop']")?.addEventListener("click", () => {
+    if (flightBuilder) flightBuilder = { ...flightBuilder, stops: [...flightBuilder.stops, { type: "onshore" }] };
+    reRenderInitial();
+  });
+  document.querySelectorAll("[data-action='fb-stop-type']").forEach(btn =>
+    btn.addEventListener("click", () => {
+      if (flightBuilder) {
+        const idx = parseInt(btn.dataset.idx);
+        flightBuilder = { ...flightBuilder, stops: flightBuilder.stops.map((s, i) => i === idx ? { type: btn.dataset.val } : s) };
+      }
+      reRenderInitial();
+    })
+  );
+  document.querySelectorAll("[data-action='fb-del-stop']").forEach(btn =>
+    btn.addEventListener("click", () => {
+      if (flightBuilder) {
+        const idx = parseInt(btn.dataset.idx);
+        flightBuilder = { ...flightBuilder, stops: flightBuilder.stops.filter((_, i) => i !== idx) };
+      }
+      reRenderInitial();
+    })
+  );
+  document.querySelector("[data-action='fb-start']")?.addEventListener("click", () => {
+    if (flightBuilder) handleSelectProfile("custom", { ...flightBuilder });
+  });
 }
 
 if ("serviceWorker" in navigator) {
