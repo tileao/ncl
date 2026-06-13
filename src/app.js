@@ -18,6 +18,7 @@ let showingInitial = false;
 let lastAutoScrolledId = null;
 let legPicker = null; // { profile: string, count: number } | null
 let flightBuilder = null; // { startup, stops:[{type}], final } | null
+let settingsOpen = false;
 let viewMode = "pdf"; // "cockpit" | "pdf"
 
 if (state.profileId && !state.completedAt) {
@@ -203,6 +204,7 @@ function getMissionSteps() {
 }
 
 function isStepAccessible(steps, stepIdx) {
+  if (settings.barriersDisabled) return true;
   for (let i = 0; i < stepIdx; i++) {
     if (!getPhaseProgress(steps[i].phase, state, steps[i].stepId).isComplete) return false;
   }
@@ -730,10 +732,24 @@ function renderInitialScreen() {
             <div class="brand-title">${escapeHtml(checklistData.title)}</div>
             <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)}</div>
           </div>
-          <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">
-            ${settings.nightMode ? ICON_SUN : ICON_MOON}
-          </button>
+          <div class="toprow-actions">
+            <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">
+              ${settings.nightMode ? ICON_SUN : ICON_MOON}
+            </button>
+            <button class="settings-gear-btn${settingsOpen ? " settings-gear-open" : ""}" data-action="toggle-settings" title="Configurações">⚙</button>
+          </div>
         </div>
+
+        ${settingsOpen ? `
+        <div class="settings-panel">
+          <div class="settings-row">
+            <span class="settings-row-label">Barreiras de avanço</span>
+            <button class="sw-toggle${settings.barriersDisabled ? "" : " sw-on"}" data-action="toggle-barriers" role="switch" aria-checked="${!settings.barriersDisabled}">
+              <span class="sw-thumb"></span>
+            </button>
+          </div>
+        </div>
+        ` : ""}
 
         <div class="reg-field">
           <label class="reg-label" for="reg-input">Matrícula</label>
@@ -1418,6 +1434,17 @@ function bindEvents() {
   document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
   document.querySelector("[data-action='reset-all']")?.addEventListener("click", handleResetAll);
   document.querySelector("[data-action='toggle-night']")?.addEventListener("click", handleToggleNightMode);
+  document.querySelector("[data-action='toggle-settings']")?.addEventListener("click", () => {
+    settingsOpen = !settingsOpen;
+    app.innerHTML = renderInitialScreen();
+    bindEvents();
+  });
+  document.querySelector("[data-action='toggle-barriers']")?.addEventListener("click", () => {
+    settings = { ...settings, barriersDisabled: !settings.barriersDisabled };
+    saveSettings(settings);
+    app.innerHTML = renderInitialScreen();
+    bindEvents();
+  });
 
   const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
 
