@@ -1570,9 +1570,8 @@ function bindEvents() {
     app.innerHTML = renderInitialScreen();
     bindEvents();
   });
-  document.querySelectorAll("[data-action='mark-time']").forEach(btn =>
-    btn.addEventListener("click", () => handleMarkTime(btn.dataset.marker))
-  );
+  // Note: mark-time clicks are handled by a single delegated listener on `app`
+  // (see bottom of file) so they work reliably across checklist re-renders.
   const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
 
   document.querySelector("[data-action='fb-open']")?.addEventListener("click", () => {
