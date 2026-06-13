@@ -12,6 +12,7 @@ import {
 const app = document.querySelector("#app");
 let state = loadState();
 let settings = loadSettings();
+if (settings.nightMode) document.body.classList.add('night');
 let currentView = "groups"; // "groups" | "checklist"
 let showingInitial = false;
 let lastAutoScrolledId = null;
@@ -57,6 +58,8 @@ const ICON_GRID = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" s
 const ICON_NEXT = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>`;
 const ICON_PDF = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
 const ICON_COCKPIT = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>`;
+const ICON_MOON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const ICON_SUN = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 
 function renderViewToggle() {
   const isPDF = viewMode === "pdf";
@@ -256,6 +259,14 @@ function handleSelectProfile(profileId, params = {}) {
 }
 
 function handleHome() { showingInitial = true; legPicker = null; render(); }
+
+function handleToggleNightMode() {
+  const isNight = document.body.classList.toggle('night');
+  settings = { ...settings, nightMode: isNight };
+  saveSettings(settings);
+  render();
+}
+
 function handleShowGroups() { currentView = "groups"; viewMode = "cockpit"; render(); }
 function handleShowNCL()    { currentView = "groups"; viewMode = "pdf";     render(); }
 function handleContinueFlight() {
@@ -562,7 +573,7 @@ function renderLegButtons(profile, paramKey, max = 5) {
     const params = JSON.stringify({ [paramKey]: n });
     return `
       <div class="mission-legs-picker">
-        <button class="leg-stepper" data-action="leg-dec" data-profile="${profile}" ${n <= 2 ? "disabled" : ""}>−</button>
+        <button class="leg-stepper" data-action="leg-dec" data-profile="${profile}" ${n <= 1 ? "disabled" : ""}>−</button>
         <span class="leg-stepper-val">${n}</span>
         <button class="leg-stepper" data-action="leg-inc" data-profile="${profile}" ${n >= max ? "disabled" : ""}>+</button>
         <button class="leg-btn leg-start" data-action="select-profile" data-profile="${profile}" data-params='${params}'>OK</button>
@@ -600,9 +611,14 @@ function renderInitialScreen() {
   return `
     <div class="initial-screen">
       <div class="initial-inner">
-        <div class="initial-brand">
-          <div class="brand-title">${escapeHtml(checklistData.title)}</div>
-          <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)}</div>
+        <div class="initial-toprow">
+          <div class="initial-brand">
+            <div class="brand-title">${escapeHtml(checklistData.title)}</div>
+            <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)}</div>
+          </div>
+          <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">
+            ${settings.nightMode ? ICON_SUN : ICON_MOON}
+          </button>
         </div>
 
         <div class="reg-field">
@@ -1204,7 +1220,7 @@ function bindEvents() {
 
   document.querySelectorAll("[data-action='leg-dec']").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (legPicker) legPicker = { ...legPicker, count: Math.max(2, legPicker.count - 1) };
+      if (legPicker) legPicker = { ...legPicker, count: Math.max(1, legPicker.count - 1) };
       app.innerHTML = renderInitialScreen();
       bindEvents();
     });
@@ -1277,6 +1293,7 @@ function bindEvents() {
   document.querySelector("[data-action='continue-flight']")?.addEventListener("click", handleContinueFlight);
   document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
   document.querySelector("[data-action='reset-all']")?.addEventListener("click", handleResetAll);
+  document.querySelector("[data-action='toggle-night']")?.addEventListener("click", handleToggleNightMode);
 }
 
 if ("serviceWorker" in navigator) {
