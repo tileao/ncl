@@ -52,9 +52,9 @@ export function saveFlightLog(log) {
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : { registration: "" };
+    return raw ? { registration: "", nightMode: false, ...JSON.parse(raw) } : { registration: "", nightMode: false };
   } catch {
-    return { registration: "" };
+    return { registration: "", nightMode: false };
   }
 }
 

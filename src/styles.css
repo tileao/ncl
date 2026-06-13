@@ -2173,3 +2173,147 @@ button {
   text-overflow: ellipsis;
 }
 
+/* ─── Initial screen toprow (brand + night toggle) ────────────── */
+
+.initial-toprow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.initial-toprow .initial-brand {
+  margin-bottom: 0;
+}
+
+.night-toggle-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  transition: background 120ms, color 120ms;
+}
+
+.night-toggle-btn:hover,
+.night-toggle-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--amber);
+  outline: none;
+}
+
+/* ─── Night mode ─────────────────────────────────────────────────── */
+
+body.night {
+  --bg: #080600;
+  --panel: #0e0b00;
+  --panel-2: #131000;
+  --panel-3: #1a1600;
+  --line: #3a2e00;
+  --text: #e8d89a;
+  --muted: #9a8a60;
+  --amber: #ffcc44;
+  --amber-bg: #2a1e00;
+  --green: #5adc8c;
+  --green-bg: #0a2010;
+  --red: #ff6060;
+  --red-bg: #2a0e0e;
+  --blue: #7ab0ff;
+}
+
+/* PDF document / view areas go dark in night mode */
+body.night .pdf-view-page { background: #080600; color: #cc9a30; }
+body.night .pdf-body { background: #080600; }
+
+body.night .pdfd-page {
+  background: #0d0800;
+  color: #cc9a30;
+  border-bottom-color: #2a1800;
+}
+
+body.night .pdfd-header { border-color: #4a3010; }
+body.night .pdfd-h-logo { background: #1a0e00; border-right-color: #4a3010; }
+body.night .pdfd-h-title { background: #1a0e00; color: #cc9a30; border-right-color: #4a3010; }
+body.night .pdfd-h-cell { background: #1a0e00; }
+body.night .pdfd-h-cell + .pdfd-h-cell { border-left-color: #4a3010; }
+body.night .pdfd-h-navy { color: #cc9a30; }
+
+body.night .pdfd-sec-hdr { background: #2a1800; border-color: #4a3010; color: #cc9a30; }
+body.night .pdfd-sub-hdr { color: #cc9a30; }
+body.night .pdfd-sec-check { color: #5adc8c; }
+
+body.night .pdfd-dots { border-bottom-color: #4a3010; }
+body.night .pdfd-item { color: #cc9a30; }
+body.night .pdfd-item.completed { color: #5adc8c; }
+body.night .pdfd-item.completed .pdfd-dots { border-color: #2a5a3a; }
+body.night .pdfd-item.completed .pdfd-state-sym { color: #5adc8c; }
+body.night .pdfd-item.skipped { color: #c06030; }
+body.night .pdfd-item.skipped .pdfd-dots { border-color: #5a3020; }
+body.night .pdfd-item.skipped .pdfd-state-sym { color: #d07820; }
+
+body.night .pdfd-hl-yellow { background: #4a3000; color: #ffcc44; }
+body.night .pdfd-hl-green { background: #004020; color: #5adc8c; }
+body.night .pdfd-memory { background: #8a0000; }
+body.night .pdfd-yellowblock { background: #3a2800; color: #ffcc44; }
+body.night .pdfd-yellowblock.completed { color: #5adc8c; }
+
+body.night .pdfd-offshore-box { border-color: #6a3a00; }
+body.night .pdfd-box-title { color: #cc9a30; }
+
+body.night .pdfd-footer { background: #1a0e00; border-color: #4a3010; }
+body.night .pdfd-f-cell { border-right-color: #4a3010; }
+body.night .pdfd-f-wide { color: #cc9a30; }
+
+body.night .pdfd-leg-chip { background: #1a0e00; border-color: #4a3010; color: #cc9a30; }
+body.night .pdfd-leg-chip.done { background: #003a20; border-color: #005a30; color: #5adc8c; }
+body.night .pdfd-leg-chip.cur { background: #2a1800; border-color: #6a4000; color: #ffcc44; }
+
+/* Section hover in night mode */
+body.night .pdfd-sec:not(.pdfd-off):hover,
+body.night .pdfd-sec:not(.pdfd-off):focus-visible { background: rgba(80, 50, 0, 0.12); }
+
+/* Cutout (detail view document) */
+body.night .pdfd-cutout { background: #0d0800; border-color: #4a3010; box-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(80,50,0,0.2); }
+body.night .pdfd-cutout-header { background: #1a0e00; border-bottom-color: #4a3010; }
+body.night .pdfd-cutout-doctitle { color: #cc9a30; }
+body.night .pdfd-cutout-page { background: #1a0e00; border-color: #4a3010; color: #cc9a30; }
+body.night .pdfd-cutout-footer { background: #1a0e00; border-top-color: #4a3010; color: #cc9a30; }
+
+/* Tappable items — night mode overrides */
+body.night .pdfd-item-tap { border-top-color: rgba(80, 50, 0, 0.35); }
+body.night .pdfd-item-tap:hover,
+body.night .pdfd-item-tap:focus-visible { background: rgba(80, 50, 0, 0.15); }
+
+body.night .pdfd-item-tap.active { background: rgba(180, 100, 0, 0.15); box-shadow: inset 3px 0 0 #8a5000; }
+body.night .pdfd-item-tap.active .pdfd-name { color: #ffcc44; }
+body.night .pdfd-item-tap.active .pdfd-dots { border-color: #8a5000; }
+body.night .pdfd-item-tap.active .pdfd-resp { color: #ffcc44; }
+body.night .pdfd-item-tap.active .pdfd-state-sym { color: #cc7a00; }
+
+body.night .pdfd-item-tap.completed .pdfd-name { color: #5adc8c; }
+body.night .pdfd-item-tap.completed .pdfd-dots { border-color: #2a5a3a; }
+body.night .pdfd-item-tap.completed .pdfd-resp { color: #5adc8c; }
+body.night .pdfd-item-tap.completed .pdfd-state-sym { color: #5adc8c; }
+
+body.night .pdfd-item-tap.skipped .pdfd-name { color: #c06030; }
+body.night .pdfd-item-tap.skipped .pdfd-dots { border-color: #5a3020; }
+body.night .pdfd-item-tap.skipped .pdfd-resp { color: #c06030; }
+body.night .pdfd-item-tap.skipped .pdfd-state-sym { color: #d07820; }
+
+body.night .pdfd-item-tap.pdfd-memory { background: #8a0000; }
+body.night .pdfd-item-tap.pdfd-memory:hover,
+body.night .pdfd-item-tap.pdfd-memory:focus-visible { background: #aa0000; }
+
+body.night .pdfd-item-tap.pdfd-yellowblock { background: #3a2800; color: #ffcc44; }
+body.night .pdfd-item-tap.pdfd-yellowblock .pdfd-state-sym { color: #cc9a30; }
+body.night .pdfd-item-tap.pdfd-yellowblock.completed { color: #5adc8c; }
+body.night .pdfd-item-tap.pdfd-yellowblock.completed .pdfd-state-sym { color: #5adc8c; }
+body.night .pdfd-item-tap.pdfd-yellowblock:hover,
+body.night .pdfd-item-tap.pdfd-yellowblock:focus-visible { background: #4a3400; }
+
