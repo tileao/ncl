@@ -643,19 +643,11 @@ function renderInitialScreen() {
 
           <button class="mission-btn" data-action="select-profile" data-profile="normal">
             <span class="mission-btn-label">Normal</span>
-            <span class="mission-btn-title">NCL</span>
             <span class="mission-btn-desc">16 grupos</span>
-          </button>
-
-          <button class="mission-btn offshore" data-action="select-profile" data-profile="offshore">
-            <span class="mission-btn-label">Offshore</span>
-            <span class="mission-btn-title">OCL</span>
-            <span class="mission-btn-desc">7 grupos</span>
           </button>
 
           <div class="mission-btn mission-multi offshore">
             <span class="mission-btn-label">Normal + Offshore</span>
-            <span class="mission-btn-title">NCL + OCL</span>
             <div class="mission-legs">
               <span class="mission-legs-label">Pousos offshore</span>
               ${renderLegButtons("normal_offshore", "offshoreLegs", 5)}
@@ -664,7 +656,6 @@ function renderInitialScreen() {
 
           <div class="mission-btn mission-multi">
             <span class="mission-btn-label">Normal c/ Paradas</span>
-            <span class="mission-btn-title">NCL</span>
             <div class="mission-legs">
               <span class="mission-legs-label">Paradas intermediárias</span>
               ${renderLegButtons("normal_stops", "stops", 4)}
