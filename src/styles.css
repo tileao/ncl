@@ -1776,7 +1776,6 @@ button {
 }
 
 .pdfd-sec.pdfd-locked {
-  opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
 }
