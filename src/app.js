@@ -256,14 +256,8 @@ function handleSelectProfile(profileId, params = {}) {
 }
 
 function handleHome() { showingInitial = true; legPicker = null; render(); }
-function handleShowGroups() {
-  if (currentView === "groups") {
-    viewMode = viewMode === "pdf" ? "cockpit" : "pdf";
-  } else {
-    currentView = "groups";
-  }
-  render();
-}
+function handleShowGroups() { currentView = "groups"; viewMode = "cockpit"; render(); }
+function handleShowNCL()    { currentView = "groups"; viewMode = "pdf";     render(); }
 function handleContinueFlight() {
   showingInitial = false;
   currentView = state.selectedStepId ? "checklist" : "groups";
@@ -550,13 +544,13 @@ function renderBottomBar() {
         ${ICON_SEEK}
         <span class="bottom-label">Pendente</span>
       </button>
-      <button class="bottom-btn ${isGroupsView ? "bb-active" : ""}" data-action="nav-groups" title="Grupos — toque para alternar NCL/PROG">
+      <button class="bottom-btn ${isGroupsView && viewMode === "cockpit" ? "bb-active" : ""}" data-action="nav-groups" title="Grupos PROG">
         ${ICON_GRID}
-        <span class="bottom-label">Grupos${isGroupsView ? (viewMode === "pdf" ? " ·NCL" : " ·PROG") : ""}</span>
+        <span class="bottom-label">Grupos</span>
       </button>
-      <button class="bottom-btn bb-next" data-action="nav-next" title="Próximo grupo">
-        ${ICON_NEXT}
-        <span class="bottom-label">${completedGroups}/${steps.length}</span>
+      <button class="bottom-btn ${isGroupsView && viewMode === "pdf" ? "bb-active" : ""}" data-action="nav-ncl" title="NCL — visualização documento">
+        ${ICON_PDF}
+        <span class="bottom-label">NCL</span>
       </button>
     </nav>
   `;
@@ -1135,7 +1129,7 @@ function renderChecklistPagePDF() {
   return `
     <div class="pdf-view-page">
       <div class="pdf-topbar pdf-topbar-detail">
-        <button class="pdfd-back-btn" data-action="nav-groups">← Mapa</button>
+        <button class="pdfd-back-btn" data-action="nav-ncl">← NCL</button>
         <div class="pdf-topbar-info">
           <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(phase.categoryTitle)}</div>
           <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
@@ -1275,6 +1269,9 @@ function bindEvents() {
   document.querySelector("[data-action='nav-next-pending']")?.addEventListener("click", handleNextPendingFromBar);
   document.querySelectorAll("[data-action='nav-groups']").forEach(btn =>
     btn.addEventListener("click", handleShowGroups)
+  );
+  document.querySelectorAll("[data-action='nav-ncl']").forEach(btn =>
+    btn.addEventListener("click", handleShowNCL)
   );
   document.querySelector("[data-action='nav-next']")?.addEventListener("click", handleNextFromBar);
   document.querySelector("[data-action='continue-flight']")?.addEventListener("click", handleContinueFlight);
