@@ -399,7 +399,10 @@ function renderFlightTimesSection() {
       </div>`;
   }
 
-  const totalMs = acionamento && corte ? corte - acionamento : null;
+  const lastPouso = pousos.length > 0 ? pousos[pousos.length - 1] : null;
+  const totalStart = acionamento ?? (corte && lastPouso ? lastPouso : null);
+  const totalEnd   = corte ?? (acionamento && lastPouso ? lastPouso : null);
+  const totalMs    = totalStart && totalEnd ? totalEnd - totalStart : null;
   const totalsHtml = (totalMs || flightMs) ? `
     <div class="ft-totals">
       ${totalMs ? `<div class="ft-total-item"><span class="ft-total-lbl">Total</span><span class="ft-total-val">${fmtDuration(totalMs)}</span></div>` : ""}
