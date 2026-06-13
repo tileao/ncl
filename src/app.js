@@ -330,11 +330,91 @@ function handleSelectProfile(profileId, params = {}) {
     skipped: {},
     completedAt: null,
     lastUpdatedAt: null,
-    flightSessionStartedAt: new Date().toISOString()
+    flightSessionStartedAt: new Date().toISOString(),
+    flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
   });
 }
 
 function handleHome() { showingInitial = true; legPicker = null; render(); }
+
+// ─── Flight times ────────────────────────────────────────────────────────────
+
+function handleMarkTime(marker) {
+  const now = Date.now();
+  const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
+  let next;
+  if (marker === "acionamento") next = { ...ft, acionamento: now };
+  else if (marker === "decolagem") next = { ...ft, decolagens: [...ft.decolagens, now] };
+  else if (marker === "pouso")     next = { ...ft, pousos: [...ft.pousos, now] };
+  else if (marker === "corte")     next = { ...ft, corte: now };
+  else return;
+  state = saveState({ ...state, flightTimes: next });
+  render();
+}
+
+function fmtHHMM(ts) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtDuration(ms) {
+  if (!ms || ms <= 0) return "—";
+  const m = Math.round(ms / 60000);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return h > 0 ? `${h}h${String(mm).padStart(2, "0")}` : `${mm}min`;
+}
+
+function renderTimingMarker(marker, label, recordedTs) {
+  const done = recordedTs != null;
+  return `
+    <div class="timing-marker timing-${marker}${done ? " timing-done" : ""}">
+      <button class="timing-tap" data-action="mark-time" data-marker="${marker}">
+        <span class="timing-tap-label">${label}</span>
+        <span class="timing-tap-val">${done ? fmtHHMM(recordedTs) : "Registrar"}</span>
+      </button>
+    </div>`;
+}
+
+function renderFlightTimesSection() {
+  const ft = state.flightTimes;
+  if (!ft) return "";
+  const { acionamento, decolagens, pousos, corte } = ft;
+  if (!acionamento && !decolagens.length && !corte) return "";
+
+  const nLegs = Math.max(decolagens.length, pousos.length);
+  let flightMs = 0;
+  let legsHtml = "";
+  for (let i = 0; i < nLegs; i++) {
+    const dep = decolagens[i] ?? null;
+    const arr = pousos[i] ?? null;
+    const legMs = dep && arr ? arr - dep : null;
+    if (legMs) flightMs += legMs;
+    const suffix = nLegs > 1 ? ` ${i + 1}` : "";
+    legsHtml += `
+      <div class="ft-leg-row">
+        <div class="ft-cell"><span class="ft-cell-lbl">Decolagem${suffix}</span><span class="ft-cell-val">${fmtHHMM(dep)}</span></div>
+        <div class="ft-cell"><span class="ft-cell-lbl">Pouso${suffix}</span><span class="ft-cell-val">${fmtHHMM(arr)}</span></div>
+        ${legMs ? `<div class="ft-cell ft-cell-dur"><span class="ft-cell-val ft-dur">${fmtDuration(legMs)}</span></div>` : ""}
+      </div>`;
+  }
+
+  const totalMs = acionamento && corte ? corte - acionamento : null;
+  const totalsHtml = (totalMs || flightMs) ? `
+    <div class="ft-totals">
+      ${totalMs ? `<div class="ft-total-item"><span class="ft-total-lbl">Total</span><span class="ft-total-val">${fmtDuration(totalMs)}</span></div>` : ""}
+      ${flightMs ? `<div class="ft-total-item"><span class="ft-total-lbl">Voo</span><span class="ft-total-val">${fmtDuration(flightMs)}</span></div>` : ""}
+    </div>` : "";
+
+  return `
+    <div class="initial-section-label">Tempos do voo</div>
+    <div class="ft-card">
+      ${acionamento ? `<div class="ft-main-row"><span class="ft-cell-lbl">Acionamento</span><span class="ft-cell-val">${fmtHHMM(acionamento)}</span></div>` : ""}
+      ${legsHtml}
+      ${corte ? `<div class="ft-main-row"><span class="ft-cell-lbl">Corte</span><span class="ft-cell-val">${fmtHHMM(corte)}</span></div>` : ""}
+      ${totalsHtml}
+    </div>`;
+}
 
 function handleToggleNightMode() {
   const isNight = document.body.classList.toggle('night');
@@ -748,6 +828,13 @@ function renderInitialScreen() {
               <span class="sw-thumb"></span>
             </button>
           </div>
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-row-label">Marcação de tempos</span>
+            <button class="sw-toggle${settings.timingEnabled ? " sw-on" : ""}" data-action="toggle-timing" role="switch" aria-checked="${settings.timingEnabled}">
+              <span class="sw-thumb"></span>
+            </button>
+          </div>
         </div>
         ` : ""}
 
@@ -806,6 +893,8 @@ function renderInitialScreen() {
           </div>
 
         </div>
+
+        ${settings.timingEnabled ? renderFlightTimesSection() : ""}
 
         ${log.length > 0 ? `
           <div class="initial-section-label">Últimos voos</div>
@@ -1233,12 +1322,23 @@ function renderChecklistPagePDF() {
     : escapeHtml(title);
   const hdrCls = phase.categoryId === "offshore" ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
 
-  const itemRows = phase.items.map(item => {
+  // Timing context
+  const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
+  const phaseId = phase.id;
+  const isBeforeTakeoff = ["normal-before-take-off", "offshore-before-takeoff"].includes(phaseId);
+  const isAfterLanding  = ["normal-after-landing",   "offshore-after-landing"].includes(phaseId);
+  const decoIdx = isBeforeTakeoff
+    ? steps.slice(0, fi + 1).filter(s => ["normal-before-take-off", "offshore-before-takeoff"].includes(s.phase.id)).length - 1
+    : -1;
+  const pousoIdx = isAfterLanding
+    ? steps.slice(0, fi + 1).filter(s => ["normal-after-landing", "offshore-after-landing"].includes(s.phase.id)).length - 1
+    : -1;
+
+  const buildItemHtml = item => {
     const status = getItemStatus(phase, item, state, step.stepId);
     const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
     const btn = `data-action="toggle-item" data-item-id="${escapeHtml(item.id)}"`;
 
-    // Red MEMORY row (+ cyan wrapper on normal checklist)
     if (item.id === "nfa-002" || item.id === "ofa-002") {
       const wrap = item.id === "nfa-002" ? " pdfd-cyanwrap" : "";
       return `<button class="pdfd-item pdfd-memory pdfd-item-tap${wrap} ${status}" ${btn}>
@@ -1246,28 +1346,44 @@ function renderChecklistPagePDF() {
         <span class="pdfd-state-sym">${sym}</span>
       </button>`;
     }
-
-    // Yellow PF CALLS block (wraps two lines like original)
     if (item.id === "otp-002") {
       return `<button class="pdfd-item pdfd-yellowblock pdfd-item-tap ${status}" ${btn}>
         <span>${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.</span>
         <span class="pdfd-state-sym">${sym}</span>
       </button>`;
     }
-
-    const bullet = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
+    const bullet  = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
     const greenDeck = (item.tags || []).includes("GREEN DECK");
     const resp = greenDeck
       ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
       : escapeHtml(item.response);
-
     return `<button class="pdfd-item pdfd-item-tap ${status}" ${btn}>
       <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}</span>
       <span class="pdfd-dots"></span>
       <span class="pdfd-resp">${resp}</span>
       <span class="pdfd-state-sym">${sym}</span>
     </button>`;
-  }).join("");
+  };
+
+  const pousoPrefix = (settings.timingEnabled && isAfterLanding)
+    ? renderTimingMarker("pouso", "POUSO", ft.pousos[pousoIdx] ?? null)
+    : "";
+
+  const itemRows = [
+    pousoPrefix,
+    ...phase.items.map((item, idx) => {
+      const row = buildItemHtml(item);
+      if (!settings.timingEnabled) return row;
+      const isLast = idx === phase.items.length - 1;
+      if (phaseId === "normal-first-engine-start" && item.id === "nfes-003")
+        return row + renderTimingMarker("acionamento", "ACIONAMENTO", ft.acionamento);
+      if (phaseId === "normal-engines-shut-down" && item.id === "nesd-010")
+        return row + renderTimingMarker("corte", "CORTE", ft.corte);
+      if (isBeforeTakeoff && isLast)
+        return row + renderTimingMarker("decolagem", "DECOLAGEM", ft.decolagens[decoIdx] ?? null);
+      return row;
+    })
+  ].join("");
 
   const completionBanner = progress.isComplete ? `
     <div class="group-complete-banner">
@@ -1445,6 +1561,15 @@ function bindEvents() {
     app.innerHTML = renderInitialScreen();
     bindEvents();
   });
+  document.querySelector("[data-action='toggle-timing']")?.addEventListener("click", () => {
+    settings = { ...settings, timingEnabled: !settings.timingEnabled };
+    saveSettings(settings);
+    app.innerHTML = renderInitialScreen();
+    bindEvents();
+  });
+  document.querySelectorAll("[data-action='mark-time']").forEach(btn =>
+    btn.addEventListener("click", () => handleMarkTime(btn.dataset.marker))
+  );
 
   const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
 

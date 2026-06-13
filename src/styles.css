@@ -2466,6 +2466,149 @@ button {
   background: #fff;
 }
 
+.settings-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 0 -16px;
+}
+
+/* ─── Timing markers (inside checklist detail view) ──────────── */
+
+.timing-marker {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  padding: 0 2px;
+}
+
+.timing-tap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 191, 71, 0.10);
+  border: 1px dashed rgba(255, 191, 71, 0.40);
+  color: var(--amber);
+  padding: 0 12px;
+  gap: 8px;
+}
+
+.timing-tap-label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timing-tap-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.timing-done .timing-tap {
+  background: rgba(53, 208, 127, 0.12);
+  border: 1px solid rgba(53, 208, 127, 0.36);
+  color: var(--green);
+}
+
+/* ─── Flight times card (initial screen) ────────────────────── */
+
+.ft-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ft-main-row,
+.ft-leg-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ft-leg-row {
+  padding: 2px 0;
+  gap: 0;
+}
+
+.ft-cell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ft-cell-dur {
+  flex: 0 0 auto;
+  align-items: flex-end;
+}
+
+.ft-main-row .ft-cell-lbl,
+.ft-main-row .ft-cell-val {
+  display: inline;
+  margin-right: 6px;
+}
+
+.ft-main-row {
+  gap: 0;
+}
+
+.ft-cell-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ft-cell-val {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.ft-dur {
+  font-size: 13px;
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.ft-totals {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.ft-total-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ft-total-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ft-total-val {
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+}
+
 /* ─── Night mode ─────────────────────────────────────────────────── */
 
 body.night {
