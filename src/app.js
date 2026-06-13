@@ -154,6 +154,13 @@ function getMissionSteps() {
   return buildMissionSteps(state.profileId, state.profileParams || {});
 }
 
+function isStepAccessible(steps, stepIdx) {
+  for (let i = 0; i < stepIdx; i++) {
+    if (!getPhaseProgress(steps[i].phase, state, steps[i].stepId).isComplete) return false;
+  }
+  return true;
+}
+
 function getProfileLabelFor(profileId, params = {}) {
   if (profileId === "normal") return "NORMAL CHECK LIST";
   if (profileId === "offshore") return "OFFSHORE CHECK LIST";
@@ -209,8 +216,10 @@ function persist(nextState) {
 
 function selectStep(stepId) {
   const steps = getMissionSteps();
-  const step = steps.find(s => s.stepId === stepId);
-  if (!step) return;
+  const stepIdx = steps.findIndex(s => s.stepId === stepId);
+  if (stepIdx < 0) return;
+  if (!isStepAccessible(steps, stepIdx)) return;
+  const step = steps[stepIdx];
   currentView = "checklist";
   lastAutoScrolledId = null;
   const active = getNextPendingItem(step.phase, state, stepId);
@@ -416,13 +425,10 @@ function handleNextGroup() {
   const progress = getPhaseProgress(step.phase, state, step.stepId);
   const nextPending = getNextPendingItem(step.phase, state, step.stepId);
 
-  if (!progress.isComplete && checklistData.flowRules.blockNextGroupUntilComplete) {
+  if (!progress.isComplete) {
     if (nextPending) {
       persist({ ...state, activeItemId: nextPending.id });
       scrollToItem(nextPending.id);
-      window.setTimeout(() =>
-        window.alert(`Grupo ainda incompleto. Próximo item pendente: ${nextPending.challenge} — ${nextPending.response}`),
-        80);
     }
     return;
   }
@@ -741,12 +747,13 @@ function renderGroupsPage() {
     sec.items.forEach(({ step, idx }) => {
       const progress = getPhaseProgress(step.phase, state, step.stepId);
       const isActive = step.stepId === state.selectedStepId;
+      const isLocked = !isStepAccessible(steps, idx);
       const title = step.label || step.phase.title;
       const offCls = sec.cat === "offshore" ? " offshore-card" : "";
       cardsHtml += `
-        <button class="group-card${progress.isComplete ? " complete" : ""}${isActive ? " active-group" : ""}${offCls}"
-          data-action="select-step" data-step-id="${escapeHtml(step.stepId)}">
-          <div class="group-card-num">${idx + 1}</div>
+        <button class="group-card${progress.isComplete ? " complete" : ""}${isActive ? " active-group" : ""}${isLocked ? " locked" : ""}${offCls}"
+          data-action="select-step" data-step-id="${escapeHtml(step.stepId)}"${isLocked ? ' disabled aria-disabled="true"' : ""}>
+          <div class="group-card-num">${isLocked ? "🔒" : idx + 1}</div>
           <div class="group-card-title">${escapeHtml(title)}</div>
           <div class="group-card-footer">
             <span class="group-card-progress">${progress.done}/${progress.total}</span>
@@ -1024,17 +1031,21 @@ function renderGroupsPagePDF() {
       return `<button class="pdfd-leg-chip${done ? " done" : ""}${cur ? " cur" : ""}" data-action="select-step" data-step-id="${escapeHtml(s.stepId)}" title="${escapeHtml(s.label || phase.title)}">${i + 1}</button>`;
     }).join("")}</span>` : "";
 
+    const currentIdx = current ? steps.findIndex(s => s.stepId === current.stepId) : -1;
+    const isLocked = inMission && currentIdx >= 0 && !isStepAccessible(steps, currentIdx);
+
     const stateChip = allDone ? `<span class="pdfd-sec-check">✓</span>` : "";
     const hdrCls = inBox ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
 
     const cls = [
       "pdfd-sec",
-      inMission ? "" : "pdfd-off",
+      !inMission ? "pdfd-off" : "",
+      isLocked ? "pdfd-locked" : "",
       allDone ? "pdfd-done" : "",
       isActive ? "pdfd-active" : ""
     ].filter(Boolean).join(" ");
 
-    const interactive = inMission ? ` data-action="select-step" data-step-id="${escapeHtml(current.stepId)}" role="button" tabindex="0"` : "";
+    const interactive = inMission && !isLocked ? ` data-action="select-step" data-step-id="${escapeHtml(current.stepId)}" role="button" tabindex="0"` : "";
 
     return `<div class="${cls}"${interactive}>
       <div class="${hdrCls}">${titleHtml}${stateChip}${legChips}</div>

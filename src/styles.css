@@ -1500,6 +1500,15 @@ button {
   border-color: rgba(53, 208, 127, 0.35);
 }
 
+.group-card.locked {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.group-card.locked .group-card-num {
+  font-size: 14px;
+}
+
 /* ─── Group completion banner (fixed above bottom bar) ───────────────────── */
 
 .group-complete-banner {
@@ -1763,6 +1772,12 @@ button {
   opacity: 0.32;
   filter: grayscale(1);
   cursor: default;
+  pointer-events: none;
+}
+
+.pdfd-sec.pdfd-locked {
+  opacity: 0.38;
+  cursor: not-allowed;
   pointer-events: none;
 }
 
