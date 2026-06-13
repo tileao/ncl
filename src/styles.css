@@ -289,7 +289,7 @@ button {
   background: var(--panel-2);
   text-align: left;
   user-select: none;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
 }
 
 .check-row.pending {
@@ -2076,7 +2076,7 @@ button {
   min-height: 2.8em;
   display: flex;
   align-items: center;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
   user-select: none;
   border-top: 1px solid rgba(0,0,0,0.07);
   pointer-events: all;
