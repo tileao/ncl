@@ -3,8 +3,8 @@ const LOG_KEY = "aw139-flight-log-v2-rev23";
 const SETTINGS_KEY = "aw139-app-settings-v1";
 
 const defaultState = {
-  profileId: null,       // "normal" | "offshore" | "normal_offshore" | "normal_stops"
-  profileParams: {},     // { offshoreLegs: 1 } or { stops: 1 }
+  profileId: null,
+  profileParams: {},
   flightRegistration: "",
   flightRemarks: "",
   selectedStepId: null,
@@ -14,7 +14,8 @@ const defaultState = {
   completedTimestamps: {},
   completedAt: null,
   lastUpdatedAt: null,
-  flightSessionStartedAt: null
+  flightSessionStartedAt: null,
+  flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
 };
 
 export function loadState() {
@@ -53,10 +54,10 @@ export function saveFlightLog(log) {
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    const defaults = { registration: "", nightMode: false, barriersDisabled: false };
+    const defaults = { registration: "", nightMode: false, barriersDisabled: false, timingEnabled: false };
     return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   } catch {
-    return { registration: "", nightMode: false, barriersDisabled: false };
+    return { registration: "", nightMode: false, barriersDisabled: false, timingEnabled: false };
   }
 }
 
