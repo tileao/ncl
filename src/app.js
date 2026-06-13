@@ -637,14 +637,6 @@ function renderInitialScreen() {
             spellcheck="false">
         </div>
 
-        ${hasFlight ? `
-          <button class="continue-flight-btn" data-action="continue-flight">
-            ← Continuar ${escapeHtml(getProfileLabel())}
-          </button>
-        ` : ""}
-
-        <div class="initial-section-label">Iniciar voo</div>
-
         <div class="reg-field">
           <label class="reg-label" for="remarks-input">Observações</label>
           <input type="text" id="remarks-input" class="reg-input remarks-input"
@@ -654,6 +646,14 @@ function renderInitialScreen() {
             autocomplete="off"
             spellcheck="false">
         </div>
+
+        ${hasFlight ? `
+          <button class="continue-flight-btn" data-action="continue-flight">
+            ← Continuar ${escapeHtml(getProfileLabel())}
+          </button>
+        ` : ""}
+
+        <div class="initial-section-label">Iniciar voo</div>
         <div class="mission-grid">
 
           <button class="mission-btn" data-action="select-profile" data-profile="normal">
