@@ -1,17 +1,34 @@
-# AW139 Checklist PWA — v2.0.0 Rev 23 Import
+# AW139 Checklist PWA — v2.0.0 Rev 24 Import
 
 PWA offline em padrão cockpit dark para execução da checklist AW139 com controle visual de itens cumpridos.
 
 ## Fonte do dataset
 
-- Documento: NCL AW 139 REV. 23.pdf
+- Documento: NCL AW 139 REV. 24.pdf
 - Título: AW-139 NORMAL CHECK LIST
 - Área: OPR
-- Revisão: 23
-- Data: 23/03/2026
+- Revisão: 24
+- Data: 26/06/2026
 - Base declarada no documento: ROTORCRAFT FLIGHT MANUAL, Issue 2 (AW139 OMNI)
 
-> Status do dataset: APPROVED. Conteúdo validado item a item contra NCL AW 139 REV. 23.pdf.
+> Status do dataset: APPROVED. Conteúdo validado item a item contra NCL AW 139 REV. 24.pdf.
+
+## Mudanças da Rev 24 (vs Rev 23)
+
+- **BEFORE TAKE OFF (normal):** `CAT A` passou de `102% NR` para `A/R`.
+- **BEFORE LANDING (normal):** `DH` passou de `SET LDP` para `SET ___ FT`.
+- **FINAL APPROACH (normal):** reestruturado para `LDG GEAR — DOWN / 3 GREEN`,
+  `RPM SWITCH (≤ 90KT) — A/R`, `AUTHORIZATION — CLEARED`
+  (removida a linha MEMORY "FINAL APPROACH RECHECK").
+- **BEFORE LANDING (offshore):** `PARK BRK` de `CHECK ON` para `ON`;
+  removida a linha `LANDING SITE — GREEN DECK`.
+- **TRAFFIC PATTERN (offshore):** linha destacada passou a
+  `PF CALLS HELIDECK ICAO CODE FROM VISUAL AIDS. PM CROSS CHECK AGAINST FLIGHT
+  PREVIEW AND READBACK THE NAME.`; removida `DS / PM CHECKS AGAINST SCHEDULE`.
+- **FINAL APPROACH (offshore):** reestruturado para `LDG GEAR — DOWN / 3 GREEN`,
+  `RPM SWITCH (≤ 90KT) — 102% NR`, `LANDING AREA — IDENTIFIED & GREEN DECK`,
+  `LANDING SITE — RECONFIRMED` e a linha destacada
+  `PF CALLS HELIDECK ICAO CODE AND PM READBACK.`
 
 ## Mudanças da v2.1 (operational readiness)
 
