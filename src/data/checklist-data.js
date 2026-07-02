@@ -4,15 +4,15 @@ export const checklistData = {
   "aircraft": "AW139",
   "contentStatus": "APPROVED",
   "revision": {
-    "source": "NCL AW 139 REV. 23.pdf",
-    "sourceRevision": "23",
-    "effectiveDate": "23/03/2026",
+    "source": "NCL AW 139 REV. 24.pdf",
+    "sourceRevision": "24",
+    "effectiveDate": "26/06/2026",
     "sourceDocumentTitle": "AW-139 NORMAL CHECK LIST",
     "sourceArea": "OPR",
     "sourceBasis": "ROTORCRAFT FLIGHT MANUAL, Issue 2 (AW139 OMNI)",
-    "datasetVersion": "v2.0.0-rev23",
+    "datasetVersion": "v2.0.0-rev24",
     "validatedBy": "APPROVED",
-    "notes": "Conteúdo validado item a item contra NCL AW 139 REV. 23.pdf."
+    "notes": "Conteúdo validado item a item contra NCL AW 139 REV. 24.pdf."
   },
   "flowRules": {
     "oneGroupPerPage": true,
@@ -643,7 +643,7 @@ export const checklistData = {
         {
           "id": "nbto-009",
           "challenge": "CAT A",
-          "response": "102% NR",
+          "response": "A/R",
           "required": true
         },
         {
@@ -805,7 +805,7 @@ export const checklistData = {
         {
           "id": "nbl-003",
           "challenge": "DH",
-          "response": "SET LDP",
+          "response": "SET ___ FT",
           "required": true
         },
         {
@@ -831,18 +831,21 @@ export const checklistData = {
       "items": [
         {
           "id": "nfa-001",
+          "challenge": "LDG GEAR",
+          "response": "DOWN / 3 GREEN",
+          "required": true
+        },
+        {
+          "id": "nfa-002",
           "challenge": "RPM SWITCH (≤ 90KT)",
           "response": "A/R",
           "required": true
         },
         {
-          "id": "nfa-002",
-          "challenge": "FINAL APPROACH RECHECK (MEMORY ITEMS)",
-          "response": "PERFORMED",
-          "required": true,
-          "tags": [
-            "MEMORY"
-          ]
+          "id": "nfa-003",
+          "challenge": "AUTHORIZATION",
+          "response": "CLEARED",
+          "required": true
         }
       ]
     },
@@ -1060,17 +1063,8 @@ export const checklistData = {
         {
           "id": "obl-002",
           "challenge": "PARK BRK",
-          "response": "CHECK ON",
+          "response": "ON",
           "required": true
-        },
-        {
-          "id": "obl-003",
-          "challenge": "LANDING SITE",
-          "response": "GREEN DECK",
-          "required": true,
-          "tags": [
-            "GREEN DECK"
-          ]
         },
         {
           "id": "obl-004",
@@ -1131,19 +1125,11 @@ export const checklistData = {
         },
         {
           "id": "otp-002",
-          "challenge": "PF CALLS UNIT NAME READ FROM VISUAL AIDS",
-          "response": "PM CROSS CHECK AGAINST FLIGHT PREVIEW AND READ BACK THE NAME",
+          "challenge": "PF CALLS HELIDECK ICAO CODE FROM VISUAL AIDS",
+          "response": "PM CROSS CHECK AGAINST FLIGHT PREVIEW AND READBACK THE NAME",
           "required": true,
           "note": "Linha destacada no checklist offshore para evitar confirmação incorreta da unidade.",
-          "tags": [
-            "MEMORY"
-          ]
-        },
-        {
-          "id": "otp-003",
-          "challenge": "DS / PM CHECKS AGAINST SCHEDULE",
-          "response": "CHECKED",
-          "required": true
+          "highlight": "yellow"
         }
       ]
     },
@@ -1156,18 +1142,34 @@ export const checklistData = {
       "items": [
         {
           "id": "ofa-001",
+          "challenge": "LDG GEAR",
+          "response": "DOWN / 3 GREEN",
+          "required": true
+        },
+        {
+          "id": "ofa-002",
           "challenge": "RPM SWITCH (≤ 90KT)",
           "response": "102% NR",
           "required": true
         },
         {
-          "id": "ofa-002",
-          "challenge": "FINAL APPROACH RECHECK (MEMORY ITEMS)",
-          "response": "PERFORMED",
+          "id": "ofa-003",
+          "challenge": "LANDING AREA",
+          "response": "IDENTIFIED & GREEN DECK",
+          "required": true
+        },
+        {
+          "id": "ofa-004",
+          "challenge": "LANDING SITE",
+          "response": "RECONFIRMED",
+          "required": true
+        },
+        {
+          "id": "ofa-005",
+          "challenge": "PF CALLS HELIDECK ICAO CODE AND PM READBACK",
+          "response": "",
           "required": true,
-          "tags": [
-            "MEMORY"
-          ]
+          "highlight": "yellow"
         }
       ]
     },

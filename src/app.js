@@ -1201,15 +1201,12 @@ function renderGroupsPagePDF() {
     const bullet = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
 
     // Highlighted rows reproduced from the company PDF
-    if (item.id === "nfa-002" || item.id === "ofa-002") {
-      return `<div class="pdfd-item pdfd-memory${item.id === "nfa-002" ? " pdfd-cyanwrap" : ""} ${status}">
-        <span class="pdfd-mem-text">${escapeHtml(item.challenge)} …….. ${escapeHtml(item.response)}</span>
-        <span class="pdfd-state-sym">${sym}</span>
-      </div>`;
-    }
-    if (item.id === "otp-002") {
+    if (item.highlight === "yellow") {
+      const text = item.response
+        ? `${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.`
+        : `${escapeHtml(item.challenge)}.`;
       return `<div class="pdfd-item pdfd-yellowblock ${status}">
-        <span>${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.</span>
+        <span>${text}</span>
         <span class="pdfd-state-sym">${sym}</span>
       </div>`;
     }
@@ -1236,8 +1233,7 @@ function renderGroupsPagePDF() {
     const allDone = inMission && phaseSteps.every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
     const isActive = inMission && phaseSteps.some(s => s.stepId === state.selectedStepId);
 
-    const isFA = phase.title === "FINAL APPROACH";
-    const titleHtml = isFA ? `<span class="pdfd-hl-yellow">${escapeHtml(phase.title)}</span>` : escapeHtml(phase.title);
+    const titleHtml = escapeHtml(phase.title);
 
     const legChips = phaseSteps.length > 1 ? `<span class="pdfd-legs">${phaseSteps.map((s, i) => {
       const done = getPhaseProgress(s.phase, state, s.stepId).isComplete;
@@ -1319,10 +1315,7 @@ function renderChecklistPagePDF() {
   const rev = checklistData.revision;
   const phase = step.phase;
 
-  const isFA = phase.title === "FINAL APPROACH";
-  const titleHtml = isFA
-    ? `<span class="pdfd-hl-yellow">${escapeHtml(title)}</span>`
-    : escapeHtml(title);
+  const titleHtml = escapeHtml(title);
   const hdrCls = phase.categoryId === "offshore" ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
 
   // Timing context
@@ -1342,16 +1335,12 @@ function renderChecklistPagePDF() {
     const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
     const btn = `data-action="toggle-item" data-item-id="${escapeHtml(item.id)}"`;
 
-    if (item.id === "nfa-002" || item.id === "ofa-002") {
-      const wrap = item.id === "nfa-002" ? " pdfd-cyanwrap" : "";
-      return `<button class="pdfd-item pdfd-memory pdfd-item-tap${wrap} ${status}" ${btn}>
-        <span class="pdfd-mem-text">${escapeHtml(item.challenge)} …….. ${escapeHtml(item.response)}</span>
-        <span class="pdfd-state-sym">${sym}</span>
-      </button>`;
-    }
-    if (item.id === "otp-002") {
+    if (item.highlight === "yellow") {
+      const text = item.response
+        ? `${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.`
+        : `${escapeHtml(item.challenge)}.`;
       return `<button class="pdfd-item pdfd-yellowblock pdfd-item-tap ${status}" ${btn}>
-        <span>${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.</span>
+        <span>${text}</span>
         <span class="pdfd-state-sym">${sym}</span>
       </button>`;
     }
