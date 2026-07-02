@@ -1233,8 +1233,7 @@ function renderGroupsPagePDF() {
     const allDone = inMission && phaseSteps.every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
     const isActive = inMission && phaseSteps.some(s => s.stepId === state.selectedStepId);
 
-    const isFA = phase.title === "FINAL APPROACH";
-    const titleHtml = isFA ? `<span class="pdfd-hl-yellow">${escapeHtml(phase.title)}</span>` : escapeHtml(phase.title);
+    const titleHtml = escapeHtml(phase.title);
 
     const legChips = phaseSteps.length > 1 ? `<span class="pdfd-legs">${phaseSteps.map((s, i) => {
       const done = getPhaseProgress(s.phase, state, s.stepId).isComplete;
@@ -1316,10 +1315,7 @@ function renderChecklistPagePDF() {
   const rev = checklistData.revision;
   const phase = step.phase;
 
-  const isFA = phase.title === "FINAL APPROACH";
-  const titleHtml = isFA
-    ? `<span class="pdfd-hl-yellow">${escapeHtml(title)}</span>`
-    : escapeHtml(title);
+  const titleHtml = escapeHtml(title);
   const hdrCls = phase.categoryId === "offshore" ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
 
   // Timing context
