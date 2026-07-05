@@ -1892,12 +1892,22 @@ button {
   color: transparent;
 }
 
-.pdfd-item.completed { color: #1a7f4e; }
-.pdfd-item.completed .pdfd-dots { border-color: #7fb89a; }
-.pdfd-item.completed .pdfd-state-sym { color: #1a7f4e; }
-.pdfd-item.skipped { color: #b06020; }
-.pdfd-item.skipped .pdfd-dots { border-color: #c88060; }
-.pdfd-item.skipped .pdfd-state-sym { color: #d07820; }
+.pdfd-item.completed {
+  color: #257a4d;
+  background: #e1f3e8;
+  box-shadow: inset 3px 0 0 #35b070;
+}
+.pdfd-item.completed .pdfd-name { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: rgba(37, 122, 77, 0.55); }
+.pdfd-item.completed .pdfd-dots { border-color: #9ccdb0; }
+.pdfd-item.completed .pdfd-resp { opacity: 0.75; }
+.pdfd-item.completed .pdfd-state-sym { color: #1a9055; font-size: 1em; }
+.pdfd-item.skipped {
+  color: #8f2317;
+  background: #f9e0dc;
+  box-shadow: inset 3px 0 0 #c03424;
+}
+.pdfd-item.skipped .pdfd-dots { border-color: #d49a90; }
+.pdfd-item.skipped .pdfd-state-sym { color: #b52a1a; font-size: 1em; }
 
 /* Highlights reproduced from the company PDF */
 .pdfd-hl-yellow { background: #ffff00; padding: 0 0.2em; }
@@ -1945,9 +1955,9 @@ button {
   white-space: normal;
 }
 
-.pdfd-yellowblock.completed { color: #1a5c30; }
+.pdfd-yellowblock.completed { background: #d9efc9; color: #1a5c30; }
 .pdfd-yellowblock .pdfd-state-sym { align-self: center; }
-.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a7f4e; }
+.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a9055; }
 
 /* Offshore box: orange border around the whole column */
 .pdfd-offshore-box {
@@ -2128,17 +2138,29 @@ button {
 .pdfd-item-tap.active .pdfd-resp  { color: #6b4000; font-weight: 700; }
 .pdfd-item-tap.active .pdfd-state-sym { color: #b07820; }
 
-/* State: completed — green text, no background change */
-.pdfd-item-tap.completed .pdfd-name  { color: #1a7f4e; text-decoration: line-through; text-decoration-color: #7fbf9a; }
-.pdfd-item-tap.completed .pdfd-dots  { border-color: #7fbf9a; }
-.pdfd-item-tap.completed .pdfd-resp  { color: #1a7f4e; }
-.pdfd-item-tap.completed .pdfd-state-sym { color: #1a7f4e; }
+/* State: completed — full green wash + left bar + strikethrough */
+.pdfd-item-tap.completed,
+.pdfd-item-tap.completed:hover,
+.pdfd-item-tap.completed:focus-visible {
+  background: #e1f3e8;
+  box-shadow: inset 3px 0 0 #35b070;
+}
+.pdfd-item-tap.completed .pdfd-name  { color: #257a4d; text-decoration: line-through; text-decoration-color: rgba(37, 122, 77, 0.55); }
+.pdfd-item-tap.completed .pdfd-dots  { border-color: #9ccdb0; }
+.pdfd-item-tap.completed .pdfd-resp  { color: #257a4d; opacity: 0.75; }
+.pdfd-item-tap.completed .pdfd-state-sym { color: #1a9055; font-size: 1em; }
 
-/* State: skipped */
-.pdfd-item-tap.skipped .pdfd-name  { color: #a04010; }
-.pdfd-item-tap.skipped .pdfd-dots  { border-color: #c88060; }
-.pdfd-item-tap.skipped .pdfd-resp  { color: #a04010; }
-.pdfd-item-tap.skipped .pdfd-state-sym { color: #d07820; }
+/* State: skipped — red wash + left bar */
+.pdfd-item-tap.skipped,
+.pdfd-item-tap.skipped:hover,
+.pdfd-item-tap.skipped:focus-visible {
+  background: #f9e0dc;
+  box-shadow: inset 3px 0 0 #c03424;
+}
+.pdfd-item-tap.skipped .pdfd-name  { color: #8f2317; }
+.pdfd-item-tap.skipped .pdfd-dots  { border-color: #d49a90; }
+.pdfd-item-tap.skipped .pdfd-resp  { color: #8f2317; }
+.pdfd-item-tap.skipped .pdfd-state-sym { color: #b52a1a; font-size: 1em; }
 
 /* Special highlight rows as tappable buttons — keep their PDF colors
    (the base .pdfd-item-tap sets background:transparent, so these
@@ -2168,9 +2190,15 @@ button {
   white-space: normal;
 }
 
-.pdfd-item-tap.pdfd-yellowblock.completed { color: #1a5c30; }
+.pdfd-item-tap.pdfd-yellowblock.completed,
+.pdfd-item-tap.pdfd-yellowblock.completed:hover,
+.pdfd-item-tap.pdfd-yellowblock.completed:focus-visible {
+  background: #d9efc9;
+  color: #1a5c30;
+  box-shadow: inset 3px 0 0 #35b070;
+}
 .pdfd-item-tap.pdfd-yellowblock .pdfd-state-sym { color: #000; align-self: center; }
-.pdfd-item-tap.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a7f4e; }
+.pdfd-item-tap.pdfd-yellowblock.completed .pdfd-state-sym { color: #1a9055; }
 .pdfd-item-tap.pdfd-yellowblock:hover,
 .pdfd-item-tap.pdfd-yellowblock:focus-visible { background: #f5f500; }
 
