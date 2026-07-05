@@ -1,4 +1,4 @@
-const CACHE_NAME = "aw139-checklist-v2.1-rev24-b40";
+const CACHE_NAME = "aw139-checklist-v2.1-rev24-b41";
 const APP_SHELL = [
   "./",
   "./index.html",

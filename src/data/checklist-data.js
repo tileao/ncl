@@ -1119,6 +1119,7 @@ export const checklistData = {
           "challenge": "LANDING SITE",
           "response": "UNIT CONFIRMATION",
           "required": true,
+          "unitInput": true,
           "tags": [
             "UNIT"
           ]
@@ -1162,7 +1163,8 @@ export const checklistData = {
           "id": "ofa-004",
           "challenge": "LANDING SITE",
           "response": "RECONFIRMED",
-          "required": true
+          "required": true,
+          "unitDisplay": true
         },
         {
           "id": "ofa-005",

@@ -15,7 +15,8 @@ const defaultState = {
   completedAt: null,
   lastUpdatedAt: null,
   flightSessionStartedAt: null,
-  flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
+  flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null },
+  unitCodes: []
 };
 
 export function loadState() {
