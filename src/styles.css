@@ -1902,12 +1902,12 @@ button {
 .pdfd-item.completed .pdfd-resp { opacity: 0.75; }
 .pdfd-item.completed .pdfd-state-sym { color: #1a9055; font-size: 1em; }
 .pdfd-item.skipped {
-  color: #a35a1c;
-  background: #fdeedd;
-  box-shadow: inset 3px 0 0 #e08830;
+  color: #8f2317;
+  background: #f9e0dc;
+  box-shadow: inset 3px 0 0 #c03424;
 }
-.pdfd-item.skipped .pdfd-dots { border-color: #d8a878; }
-.pdfd-item.skipped .pdfd-state-sym { color: #d07820; font-size: 1em; }
+.pdfd-item.skipped .pdfd-dots { border-color: #d49a90; }
+.pdfd-item.skipped .pdfd-state-sym { color: #b52a1a; font-size: 1em; }
 
 /* Highlights reproduced from the company PDF */
 .pdfd-hl-yellow { background: #ffff00; padding: 0 0.2em; }
@@ -2150,17 +2150,17 @@ button {
 .pdfd-item-tap.completed .pdfd-resp  { color: #257a4d; opacity: 0.75; }
 .pdfd-item-tap.completed .pdfd-state-sym { color: #1a9055; font-size: 1em; }
 
-/* State: skipped — amber wash + left bar */
+/* State: skipped — red wash + left bar */
 .pdfd-item-tap.skipped,
 .pdfd-item-tap.skipped:hover,
 .pdfd-item-tap.skipped:focus-visible {
-  background: #fdeedd;
-  box-shadow: inset 3px 0 0 #e08830;
+  background: #f9e0dc;
+  box-shadow: inset 3px 0 0 #c03424;
 }
-.pdfd-item-tap.skipped .pdfd-name  { color: #a35a1c; }
-.pdfd-item-tap.skipped .pdfd-dots  { border-color: #d8a878; }
-.pdfd-item-tap.skipped .pdfd-resp  { color: #a35a1c; }
-.pdfd-item-tap.skipped .pdfd-state-sym { color: #d07820; font-size: 1em; }
+.pdfd-item-tap.skipped .pdfd-name  { color: #8f2317; }
+.pdfd-item-tap.skipped .pdfd-dots  { border-color: #d49a90; }
+.pdfd-item-tap.skipped .pdfd-resp  { color: #8f2317; }
+.pdfd-item-tap.skipped .pdfd-state-sym { color: #b52a1a; font-size: 1em; }
 
 /* Special highlight rows as tappable buttons — keep their PDF colors
    (the base .pdfd-item-tap sets background:transparent, so these
