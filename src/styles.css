@@ -2472,6 +2472,59 @@ button {
   margin: 0 -16px;
 }
 
+/* ─── Unit code (indicativo da unidade marítima) ─────────────── */
+
+.unit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 2px;
+  pointer-events: all;
+}
+
+.unit-row-lbl {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #1a2b6d;
+  white-space: nowrap;
+}
+
+.unit-input {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1.5px dashed #1a2b6d;
+  background: #fffbe6;
+  color: #10142a;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0 10px;
+  pointer-events: all;
+  touch-action: manipulation;
+}
+
+.unit-input:focus {
+  outline: none;
+  border-style: solid;
+  background: #fff6c4;
+}
+
+.unit-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #fff3b0;
+  border: 1px solid #d4b400;
+  color: #10142a;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
 /* ─── Timing markers (inside checklist detail view) ──────────── */
 
 .timing-marker {

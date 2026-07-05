@@ -331,7 +331,8 @@ function handleSelectProfile(profileId, params = {}) {
     completedAt: null,
     lastUpdatedAt: null,
     flightSessionStartedAt: new Date().toISOString(),
-    flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
+    flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null },
+    unitCodes: []
   });
 }
 
@@ -373,6 +374,17 @@ function renderTimingMarker(marker, label, recordedTs) {
         <span class="timing-tap-label">${label}</span>
         <span class="timing-tap-val">${done ? fmtHHMM(recordedTs) : "Registrar"}</span>
       </button>
+    </div>`;
+}
+
+function renderUnitInput(legIdx, value) {
+  return `
+    <div class="unit-row">
+      <span class="unit-row-lbl">INDICATIVO</span>
+      <input type="text" class="unit-input" data-action="unit-code" data-leg="${legIdx}"
+        value="${escapeHtml(value)}" placeholder="—"
+        maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false"
+        enterkeyhint="done">
     </div>`;
 }
 
@@ -1330,6 +1342,13 @@ function renderChecklistPagePDF() {
     ? steps.slice(0, fi + 1).filter(s => ["normal-after-landing", "offshore-after-landing"].includes(s.phase.id)).length - 1
     : -1;
 
+  // Unit code (indicativo da unidade marítima) — one per offshore leg.
+  // Traffic pattern leg N and final approach leg N share the same index.
+  const unitLegIdx = ["offshore-traffic-pattern", "offshore-final-approach"].includes(phaseId)
+    ? steps.slice(0, fi + 1).filter(s => s.phase.id === phaseId).length - 1
+    : -1;
+  const unitCode = unitLegIdx >= 0 ? ((state.unitCodes || [])[unitLegIdx] || "") : "";
+
   const buildItemHtml = item => {
     const status = getItemStatus(phase, item, state, step.stepId);
     const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
@@ -1349,8 +1368,11 @@ function renderChecklistPagePDF() {
     const resp = greenDeck
       ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
       : escapeHtml(item.response);
+    const unitChip = item.unitDisplay && unitCode
+      ? ` <span class="unit-chip">${escapeHtml(unitCode)}</span>`
+      : "";
     return `<button class="pdfd-item pdfd-item-tap ${status}" ${btn}>
-      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}</span>
+      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}${unitChip}</span>
       <span class="pdfd-dots"></span>
       <span class="pdfd-resp">${resp}</span>
       <span class="pdfd-state-sym">${sym}</span>
@@ -1364,7 +1386,8 @@ function renderChecklistPagePDF() {
   const itemRows = [
     pousoPrefix,
     ...phase.items.map((item, idx) => {
-      const row = buildItemHtml(item);
+      let row = buildItemHtml(item);
+      if (item.unitInput) row += renderUnitInput(unitLegIdx, unitCode);
       if (!settings.timingEnabled) return row;
       const isLast = idx === phase.items.length - 1;
       if (phaseId === "normal-first-engine-start" && item.id === "nfes-003")
@@ -1614,6 +1637,18 @@ if ("serviceWorker" in navigator) {
 app.addEventListener("click", e => {
   const btn = e.target.closest("[data-action='mark-time']");
   if (btn) handleMarkTime(btn.dataset.marker);
+});
+
+// Unit code typing — save without re-render so the keyboard keeps focus;
+// the FINAL APPROACH chip picks the value up on its next render.
+app.addEventListener("input", e => {
+  const inp = e.target.closest("input[data-action='unit-code']");
+  if (!inp) return;
+  const leg = parseInt(inp.dataset.leg);
+  if (isNaN(leg) || leg < 0) return;
+  const codes = [...(state.unitCodes || [])];
+  codes[leg] = inp.value.toUpperCase().trim();
+  state = saveState({ ...state, unitCodes: codes });
 });
 
 render();
