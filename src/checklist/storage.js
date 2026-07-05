@@ -54,10 +54,10 @@ export function saveFlightLog(log) {
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    const defaults = { registration: "", nightMode: false, barriersDisabled: false, timingEnabled: false };
+    const defaults = { registration: "", nightMode: false, barriersDisabled: true, timingEnabled: false };
     return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   } catch {
-    return { registration: "", nightMode: false, barriersDisabled: false, timingEnabled: false };
+    return { registration: "", nightMode: false, barriersDisabled: true, timingEnabled: false };
   }
 }
 
