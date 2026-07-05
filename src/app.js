@@ -9,6 +9,9 @@ import {
   toggleItem, markSkipped, resetPhase
 } from "./checklist/engine.js";
 
+// Keep in sync with CACHE_NAME in service-worker.js (bump together)
+const APP_BUILD = "b44";
+
 const app = document.querySelector("#app");
 let state = loadState();
 let settings = loadSettings();
@@ -825,7 +828,7 @@ function renderInitialScreen() {
         <div class="initial-toprow">
           <div class="initial-brand">
             <div class="brand-title">${escapeHtml(checklistData.title)}</div>
-            <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)}</div>
+            <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)} • ${APP_BUILD}</div>
           </div>
           <div class="toprow-actions">
             <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">
