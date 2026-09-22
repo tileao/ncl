@@ -1135,13 +1135,16 @@ button {
 }
 
 .cad-row {
+  position: relative;
   display: grid;
   grid-template-columns: 3024fr 2015fr;
   color: #000;
 }
 
-.cad-z0 { background: #fff; }
-.cad-z1 { background: #C8C8C8; }
+/* Shading sits on the cells so the detail view's margin marks stay outside
+   the table. Cells are top-aligned, as in Word. */
+.cad-z0 > .cad-ch, .cad-z0 > .cad-rs { background: #fff; }
+.cad-z1 > .cad-ch, .cad-z1 > .cad-rs { background: #C8C8C8; }
 
 .cad-ch { padding: 0.156em 0.1875em 0.156em 0.25em; text-align: left; }
 .cad-rs { padding: 0.156em 0.25em 0.156em 0.1875em; text-align: right; }
@@ -1154,14 +1157,18 @@ button {
   padding: 0.46875em 0.3125em;
 }
 
-/* Item states — the zebra stays visible under the wash */
-.cad-row.completed { box-shadow: inset 0.3em 0 0 #35b070; color: #1d6b43; }
-.cad-row.completed.cad-z0 { background: #dff2e6; }
-.cad-row.completed.cad-z1 { background: #b7dcc4; }
-.cad-row.completed .cad-ch { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: rgba(29, 107, 67, 0.6); }
-.cad-row.skipped { box-shadow: inset 0.3em 0 0 #c03424; color: #8f2317; }
-.cad-row.skipped.cad-z0 { background: #f9e0dc; }
-.cad-row.skipped.cad-z1 { background: #e5bfb8; }
+/* Item state never changes the table itself — it is ticked in the margin
+   to the right of the table, like a pen mark on the printed caderno. */
+.cad-sheet .cad-row.completed::after,
+.cad-sheet .cad-row.skipped::after {
+  position: absolute;
+  left: 100%;
+  top: 0.156em;
+  padding-left: 0.3em;
+  font-weight: 700;
+}
+.cad-sheet .cad-row.completed::after { content: "✓"; color: #1a9055; }
+.cad-sheet .cad-row.skipped::after { content: "⚠"; color: #c03424; }
 
 /* ── Overview: document pages ───────────────────────────── */
 
@@ -1214,16 +1221,28 @@ button {
 .cad-sec { position: relative; cursor: pointer; }
 .cad-sec.cad-off { opacity: 0.3; filter: grayscale(1); cursor: default; }
 .cad-sec.cad-locked { opacity: 0.45; cursor: not-allowed; }
-.cad-sec.cad-active { outline: 0.3em solid #e0a020; outline-offset: 0.15em; }
 .cad-sec[role="button"]:focus-visible { outline: 0.3em solid #59a7ff; outline-offset: 0.15em; }
 
+/* Open group: amber bar in the margin, left of the table */
+.cad-sec.cad-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -0.65em;
+  width: 0.3em;
+  border-radius: 0.15em;
+  background: #e0a020;
+}
+
+/* Completed group: tick in the margin, right of the title bar */
 .cad-sec-check {
   position: absolute;
-  right: 0.35em;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6fe39a;
-  font-weight: 900;
+  left: 100%;
+  top: 0.2105em;
+  padding-left: 0.25em;
+  color: #1a9055;
+  font-weight: 700;
 }
 
 /* ── Detail: one checklist, enlarged and tappable ───────── */
@@ -1235,12 +1254,16 @@ button {
   padding-right: 8px;
 }
 
+/* The sheet's side padding is the margin that carries the item marks. The
+   table keeps the caderno proportions (31.5em wide at 8pt = 1em) and only
+   shrinks below that on narrow phones. */
 .cad-detail-sheet {
-  font-size: clamp(14px, calc((100vw - 16px) / 34.5), 22px);
-  width: 34.5em;
+  --gut: 1.4em;
+  font-size: clamp(13px, calc((100vw - 16px) / 34.3), 24px);
+  width: 34.3em;
   max-width: 100%;
   margin: 0 auto 16px;
-  padding: 0.9em 1.5em 1em;
+  padding: 0.9em var(--gut) 1em;
   background: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
 }
@@ -1249,12 +1272,14 @@ button {
 .cad-detail-sheet .cad-page-footer { font-size: 0.72em; margin-top: 1em; }
 .cad-detail-sheet .cad-table { width: 100%; }
 
+/* Each row is one tap target spanning both margins */
 .cad-row-tap {
-  width: 100%;
-  grid-template-columns: 3024fr 2015fr 1.3em;
-  align-items: center;
-  min-height: 44px;
+  width: calc(100% + 2 * var(--gut));
+  margin: 0 calc(-1 * var(--gut));
+  grid-template-columns: var(--gut) 3024fr 2015fr var(--gut);
+  background: transparent;
   font: inherit;
+  line-height: inherit;
   text-align: inherit;
   padding: 0;
   cursor: pointer;
@@ -1263,21 +1288,14 @@ button {
   -webkit-user-select: none;
 }
 
-.cad-row-tap .cad-ch,
-.cad-row-tap .cad-rs { padding-top: 0.35em; padding-bottom: 0.35em; }
-.cad-row-tap .cad-rs { padding-right: 0.1em; }
-
-.cad-sym {
+.cad-mk {
+  padding-top: 0.156em;
   text-align: center;
-  font-weight: 900;
+  font-weight: 700;
 }
-
-.cad-row-tap.completed .cad-sym { color: #1a9055; }
-.cad-row-tap.skipped .cad-sym { color: #b52a1a; }
-
-.cad-row-tap.active { box-shadow: inset 0.3em 0 0 #e0a020; }
-.cad-row-tap.active.cad-z0 { background: #fff4d6; }
-.cad-row-tap.active.cad-z1 { background: #dccda2; }
+.cad-mk-l { color: #e0a020; font-size: 0.8em; padding-top: 0.3em; }
+.cad-row-tap.completed .cad-mk-r { color: #1a9055; }
+.cad-row-tap.skipped .cad-mk-r { color: #c03424; }
 
 .cad-row-tap:focus-visible { outline: 2px solid #59a7ff; outline-offset: -2px; }
 
@@ -1642,25 +1660,16 @@ body.night .cad-trigger,
 body.night .cad-complete { background: #1a1200; color: #cc9a30; }
 
 body.night .cad-row { color: #e0c080; }
-body.night .cad-z0 { background: #0d0800; }
-body.night .cad-z1 { background: #1c1400; }
+body.night .cad-z0 > .cad-ch, body.night .cad-z0 > .cad-rs { background: #0d0800; }
+body.night .cad-z1 > .cad-ch, body.night .cad-z1 > .cad-rs { background: #1c1400; }
 
-body.night .cad-row.completed { color: #5adc8c; box-shadow: inset 0.3em 0 0 #2f9a5c; }
-body.night .cad-row.completed.cad-z0 { background: #0b2214; }
-body.night .cad-row.completed.cad-z1 { background: #12301c; }
-body.night .cad-row.completed .cad-ch { text-decoration-color: rgba(90, 220, 140, 0.5); }
-body.night .cad-row.skipped { color: #ff8a70; box-shadow: inset 0.3em 0 0 #c03424; }
-body.night .cad-row.skipped.cad-z0 { background: #2a0e0a; }
-body.night .cad-row.skipped.cad-z1 { background: #36140e; }
-
-body.night .cad-row-tap.active { box-shadow: inset 0.3em 0 0 #cc7a00; }
-body.night .cad-row-tap.active.cad-z0 { background: #231600; }
-body.night .cad-row-tap.active.cad-z1 { background: #2e1d00; }
-body.night .cad-row-tap.completed .cad-sym { color: #5adc8c; }
-body.night .cad-row-tap.skipped .cad-sym { color: #ff8a70; }
-
+body.night .cad-sheet .cad-row.completed::after,
+body.night .cad-row-tap.completed .cad-mk-r,
 body.night .cad-sec-check { color: #5adc8c; }
-body.night .cad-sec.cad-active { outline-color: #cc7a00; }
+body.night .cad-sheet .cad-row.skipped::after,
+body.night .cad-row-tap.skipped .cad-mk-r { color: #ff8a70; }
+body.night .cad-mk-l { color: #cc7a00; }
+body.night .cad-sec.cad-active::before { background: #cc7a00; }
 
 body.night .cad-table .timing-marker { background: #0d0800; }
 body.night .cad-table .timing-tap { background: #231600; border-color: #6a4000; color: #ffcc44; }
