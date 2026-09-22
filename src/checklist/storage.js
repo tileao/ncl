@@ -1,10 +1,13 @@
-const STORAGE_KEY = "aw139-checklist-state-v3-rev23";
-const LOG_KEY = "aw139-flight-log-v2-rev23";
+// v4: unified fleet caderno (one checklist per fleet, flight split into legs
+// by the number of landings). State and log from the old NCL/OCL AW139
+// dataset are not compatible, so they get new keys.
+const STORAGE_KEY = "omni-checklist-state-v4-caderno-v7";
+const LOG_KEY = "omni-flight-log-v3-caderno-v7";
 const SETTINGS_KEY = "aw139-app-settings-v1";
 
 const defaultState = {
-  profileId: null,
-  profileParams: {},
+  fleetId: null,
+  landings: 1,
   flightRegistration: "",
   flightRemarks: "",
   selectedStepId: null,
@@ -15,8 +18,7 @@ const defaultState = {
   completedAt: null,
   lastUpdatedAt: null,
   flightSessionStartedAt: null,
-  flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null },
-  unitCodes: []
+  flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
 };
 
 export function loadState() {
@@ -52,13 +54,20 @@ export function saveFlightLog(log) {
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
 
+const defaultSettings = {
+  fleetId: null, // null → caderno.defaultFleetId
+  registration: "",
+  nightMode: false,
+  barriersDisabled: true,
+  timingEnabled: false
+};
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    const defaults = { registration: "", nightMode: false, barriersDisabled: true, timingEnabled: false };
-    return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+    return raw ? { ...defaultSettings, ...JSON.parse(raw) } : { ...defaultSettings };
   } catch {
-    return { registration: "", nightMode: false, barriersDisabled: true, timingEnabled: false };
+    return { ...defaultSettings };
   }
 }
 
