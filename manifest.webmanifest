@@ -1,6 +1,6 @@
 {
-  "name": "OMNI Checklist",
-  "short_name": "OMNI Check",
+  "name": "Checklist OMNI",
+  "short_name": "Checklist OMNI",
   "description": "PWA offline com o caderno unificado de checklists normais da frota OMNI: marcação de itens, progresso por perna e retomada após interrupção.",
   "start_url": "./index.html",
   "scope": "./",

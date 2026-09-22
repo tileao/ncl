@@ -773,13 +773,16 @@ function renderChecklistPage() {
   const legIdx = leg - 1;
   const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
 
+  // The table cells stay exactly as in the caderno; item state is marked in
+  // the margins, outside the table: ▶ next item on the left, ✓ / ⚠ on the right.
   const rows = phase.items.map((item, i) => {
     const status = getItemStatus(phase, item, state, step.stepId);
-    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
+    const mark = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
     return `<button class="cad-row cad-row-tap cad-z${i % 2} ${status}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
+      <span class="cad-mk cad-mk-l">${status === "active" ? "▶" : ""}</span>
       <span class="cad-ch">${escapeHtml(item.challenge)}</span>
       <span class="cad-rs">${escapeHtml(item.response)}</span>
-      <span class="cad-sym">${sym}</span>
+      <span class="cad-mk cad-mk-r">${mark}</span>
     </button>`;
   });
 
@@ -918,8 +921,8 @@ function renderInitialScreen() {
       <div class="initial-inner">
         <div class="initial-toprow">
           <div class="initial-brand">
-            <div class="brand-title">Checklist ${escapeHtml(fleet.name)}</div>
-            <div class="initial-sub">Caderno unificado ${escapeHtml(caderno.version)} • OMNI Táxi Aéreo</div>
+            <div class="brand-title">Checklist OMNI</div>
+            <div class="initial-sub">Frota ${escapeHtml(fleet.name)} • Caderno unificado ${escapeHtml(caderno.version)}</div>
           </div>
           <div class="toprow-actions">
             <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">

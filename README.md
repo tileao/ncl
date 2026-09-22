@@ -1,4 +1,4 @@
-# OMNI Checklist PWA — Caderno Unificado v7
+# Checklist OMNI — Caderno Unificado v7
 
 PWA offline para execução dos checklists normais da frota OMNI Táxi Aéreo,
 com controle visual de itens cumpridos, progresso por perna e retomada após
@@ -40,6 +40,10 @@ O script valida a estrutura de cada tabela (título, gatilho, itens, linha de
     (tabelas nunca quebram entre colunas). Em telas estreitas, uma coluna por
     página. O seletor **Perna** no topo escolhe qual perna aparece marcada.
   - **Checklist** (detalhe): a tabela do grupo ampliada, com toque por item.
+  - A tabela nunca muda com o estado dos itens: as marcações ficam na margem,
+    fora da tabela — ✓ cumprido e ⚠ não cumprido à direita, ▶ próximo item à
+    esquerda; na visão Caderno, barra âmbar ao lado do grupo aberto e ✓ ao lado
+    do título dos grupos concluídos.
 - Relatório de voo (PDF) no mesmo estilo de tabela, com perna, status e
   horário de cada item.
 - Marcação de tempos por perna: ACIONAMENTO (fim do BEFORE START), DECOLAGEM
