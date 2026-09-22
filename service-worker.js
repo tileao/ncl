@@ -1,4 +1,4 @@
-const CACHE_NAME = "omni-checklist-v3-caderno-v7-b2";
+const CACHE_NAME = "omni-checklist-v3-caderno-v7-b3";
 const APP_SHELL = [
   "./",
   "./index.html",

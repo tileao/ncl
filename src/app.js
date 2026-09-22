@@ -5,8 +5,8 @@ import {
   loadSettings, saveSettings
 } from "./checklist/storage.js";
 import {
-  getPhaseProgress, getNextPendingItem, getItemStatus,
-  toggleItem, markSkipped, resetPhase
+  getPhaseProgress, getNextPendingItem, getCurrentItem, getItemStatus,
+  toggleItem, resetPhase
 } from "./checklist/engine.js";
 
 const app = document.querySelector("#app");
@@ -57,7 +57,7 @@ function formatDate(iso) {
 
 const ICON_HOME = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>`;
 const ICON_RESET = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>`;
-const ICON_SEEK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="15"/><polyline points="8,11 12,15 16,11"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg>`;
+const ICON_CURRENT = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><polyline points="9,14 11,16 15,11"/></svg>`;
 const ICON_GRID = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`;
 const ICON_DOC = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
 const ICON_MOON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
@@ -158,11 +158,10 @@ function selectStep(stepId) {
   const step = steps[stepIdx];
   currentView = "checklist";
   overviewLeg = null;
-  const active = getNextPendingItem(step.phase, state, stepId);
   persist({
     ...state,
     selectedStepId: stepId,
-    activeItemId: active?.id || step.phase.items[0]?.id || null,
+    activeItemId: getCurrentItem(step.phase, state, stepId)?.id || null,
     flightSessionStartedAt: state.flightSessionStartedAt || new Date().toISOString()
   });
 }
@@ -335,9 +334,28 @@ function handleResetGroupFromBar() {
   handleResetPhase();
 }
 
-function handleNextPendingFromBar() {
-  if (currentView !== "checklist") return;
-  handleGoNextPending();
+// The group the flight is on: the furthest group with a checked item while
+// it is incomplete, otherwise the one after it. Peeking at a later group or
+// leaving not-accomplished items behind does not move it.
+function getCurrentStep() {
+  const steps = getMissionSteps();
+  if (!steps.length) return null;
+  let last = -1;
+  steps.forEach((s, i) => { if ((state.completed?.[s.stepId] || []).length) last = i; });
+  if (last < 0) return steps[0];
+  const done = getPhaseProgress(steps[last].phase, state, steps[last].stepId).isComplete;
+  return done ? (steps[last + 1] || steps[last]) : steps[last];
+}
+
+function handleGoCurrent() {
+  const step = getCurrentStep();
+  if (!step) return;
+  if (currentView === "checklist" && step.stepId === state.selectedStepId) {
+    const item = getCurrentItem(step.phase, state, step.stepId);
+    if (item) scrollToItem(item.id);
+    return;
+  }
+  selectStep(step.stepId);
 }
 
 // ─── Checklist handlers ────────────────────────────────────────────────────
@@ -379,7 +397,6 @@ function handleCompleteFlight() {
     doneGroups: stats.doneGroups,
     doneItems: stats.doneItems,
     completed: { ...state.completed },
-    skipped: { ...state.skipped },
     completedTimestamps: { ...(state.completedTimestamps || {}) }
   });
   saveFlightLog(log.slice(0, 10));
@@ -390,14 +407,6 @@ function handleToggleItem(id) {
   const step = selectedStep();
   if (!step) return;
   persist(toggleItem(step.phase, id, state, step.stepId, new Date().toISOString()));
-}
-
-function handleSkipItem(id) {
-  const ok = window.confirm("Marcar este item como ATENÇÃO / NÃO CUMPRIDO? Ele continuará impedindo o avanço até ser cumprido.");
-  if (!ok) return;
-  const step = selectedStep();
-  if (!step) return;
-  persist(markSkipped(step.phase, id, state, step.stepId));
 }
 
 function handleResetPhase() {
@@ -424,7 +433,8 @@ function handleReviewChecklist() {
 }
 
 function autoScrollToActiveItem() {
-  const id = state.activeItemId;
+  const step = selectedStep();
+  const id = step && getCurrentItem(step.phase, state, step.stepId)?.id;
   if (!id) return;
   requestAnimationFrame(() => {
     document.querySelector(`[data-item-id="${id}"]`)?.scrollIntoView({ behavior: "instant", block: "center" });
@@ -435,15 +445,6 @@ function scrollToItem(id) {
   requestAnimationFrame(() => {
     document.querySelector(`[data-item-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
-}
-
-function handleGoNextPending() {
-  const step = selectedStep();
-  if (!step) return;
-  const next = getNextPendingItem(step.phase, state, step.stepId);
-  if (!next) return;
-  persist({ ...state, selectedStepId: step.stepId, activeItemId: next.id });
-  scrollToItem(next.id);
 }
 
 function handleNextGroup() {
@@ -477,7 +478,6 @@ function generateFlightPDF(flightId) {
   const landings = clampLandings(entry.landings);
   const steps = buildFlightSteps(fleet.id, landings);
   const doneMap = entry.completed || {};
-  const skipMap = entry.skipped || {};
   const tsMap = entry.completedTimestamps || {};
 
   const fmtTime = iso => {
@@ -488,11 +488,12 @@ function generateFlightPDF(flightId) {
   const groupsHTML = steps.map(step => {
     const { phase } = step;
     const done = new Set(doneMap[step.stepId] || []);
-    const skip = new Set(skipMap[step.stepId] || []);
     const stepTs = tsMap[step.stepId] || {};
     const cnt = phase.items.filter(i => done.has(i.id)).length;
+    // Not accomplished = unchecked with a checked item below it
+    const lastDone = phase.items.reduce((last, it, i) => (done.has(it.id) ? i : last), -1);
     const rows = phase.items.map((item, i) => {
-      const isDone = done.has(item.id), isSkip = !isDone && skip.has(item.id);
+      const isDone = done.has(item.id), isSkip = !isDone && i < lastDone;
       const cl = isDone ? "done" : (isSkip ? "attn" : "pend");
       const ic = isDone ? "✓" : (isSkip ? "⚠" : "");
       const ts = isDone && stepTs[item.id] ? fmtTime(stepTs[item.id]) : "";
@@ -845,8 +846,8 @@ function renderChecklistPage() {
 function renderBottomBar() {
   const isGroupsView = currentView === "groups";
   const onChecklist = currentView === "checklist";
-  const step = onChecklist ? selectedStep() : null;
-  const hasNextPending = onChecklist && step ? !!getNextPendingItem(step.phase, state, step.stepId) : false;
+  const currentStep = getCurrentStep();
+  const onCurrent = onChecklist && currentStep?.stepId === state.selectedStepId;
 
   return `
     <nav class="bottom-bar">
@@ -858,9 +859,9 @@ function renderBottomBar() {
         ${ICON_RESET}
         <span class="bottom-label">Reset</span>
       </button>
-      <button class="bottom-btn ${hasNextPending ? "bb-seek" : "bb-dim"}" data-action="nav-next-pending" ${!hasNextPending ? "disabled" : ""} title="Próximo pendente">
-        ${ICON_SEEK}
-        <span class="bottom-label">Pendente</span>
+      <button class="bottom-btn ${onCurrent ? "bb-active" : ""}" data-action="nav-current" title="Grupo atual">
+        ${ICON_CURRENT}
+        <span class="bottom-label">Atual</span>
       </button>
       <button class="bottom-btn ${isGroupsView && viewMode === "cockpit" ? "bb-active" : ""}" data-action="nav-groups" title="Grupos">
         ${ICON_GRID}
@@ -1169,45 +1170,7 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-action='toggle-item']").forEach(btn => {
-    let x0 = 0, y0 = 0, didSwipe = false;
-    const id = btn.dataset.itemId;
-
-    btn.addEventListener("pointerdown", e => {
-      x0 = e.clientX; y0 = e.clientY; didSwipe = false;
-      btn.style.transition = "none";
-    });
-
-    btn.addEventListener("pointermove", e => {
-      const dx = e.clientX - x0, dy = e.clientY - y0;
-      if (dx < 0 && Math.abs(dx) > Math.abs(dy)) {
-        const t = Math.min(Math.abs(dx), 100);
-        btn.style.transform = `translateX(${-t}px)`;
-        btn.style.background = `rgba(255,92,92,${(t / 100) * 0.28})`;
-      }
-    });
-
-    const release = e => {
-      const dx = (e.clientX ?? x0) - x0;
-      const dy = (e.clientY ?? y0) - y0;
-      btn.style.transition = "transform 220ms ease, background 220ms ease";
-      btn.style.transform = "";
-      btn.style.background = "";
-      if (dx < -60 && Math.abs(dy) < 50) {
-        didSwipe = true;
-        handleSkipItem(id);
-      }
-    };
-
-    btn.addEventListener("pointerup", release);
-    btn.addEventListener("pointercancel", () => {
-      btn.style.transition = "transform 220ms ease, background 220ms ease";
-      btn.style.transform = "";
-      btn.style.background = "";
-    });
-    btn.addEventListener("click", e => {
-      if (didSwipe) { e.preventDefault(); didSwipe = false; return; }
-      handleToggleItem(id);
-    });
+    btn.addEventListener("click", () => handleToggleItem(btn.dataset.itemId));
   });
 
   document.querySelectorAll("[data-action='export-pdf']").forEach(btn => {
@@ -1216,7 +1179,7 @@ function bindEvents() {
 
   document.querySelector("[data-action='nav-home']")?.addEventListener("click", handleHome);
   document.querySelector("[data-action='nav-reset-group']")?.addEventListener("click", handleResetGroupFromBar);
-  document.querySelector("[data-action='nav-next-pending']")?.addEventListener("click", handleNextPendingFromBar);
+  document.querySelector("[data-action='nav-current']")?.addEventListener("click", handleGoCurrent);
   document.querySelectorAll("[data-action='nav-groups']").forEach(btn =>
     btn.addEventListener("click", handleShowGroups)
   );
