@@ -1,4 +1,4 @@
-import { checklistData } from "./data/checklist-data.js";
+import { caderno } from "./data/fleets.js";
 import {
   loadState, saveState, resetAllState,
   loadFlightLog, saveFlightLog,
@@ -14,14 +14,16 @@ let state = loadState();
 let settings = loadSettings();
 if (settings.nightMode) document.body.classList.add('night');
 let currentView = "groups"; // "groups" | "checklist"
+let viewMode = "doc";       // "doc" (caderno) | "cockpit" (cards)
 let showingInitial = false;
-let lastAutoScrolledId = null;
-let legPicker = null; // { profile: string, count: number } | null
-let flightBuilder = null; // { startup, stops:[{type}], final } | null
 let settingsOpen = false;
-let viewMode = "pdf"; // "cockpit" | "pdf"
+let landingsDraft = state.landings || 1;
+let overviewLeg = null;     // leg shown on the caderno overview; null → leg of the open group
+let lastDocWidth = 0;
 
-if (state.profileId && !state.completedAt) {
+const MAX_LANDINGS = 12;
+
+if (state.fleetId && !state.completedAt) {
   currentView = state.selectedStepId ? "checklist" : "groups";
 }
 
@@ -57,150 +59,57 @@ const ICON_HOME = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" s
 const ICON_RESET = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>`;
 const ICON_SEEK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="15"/><polyline points="8,11 12,15 16,11"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg>`;
 const ICON_GRID = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`;
-const ICON_NEXT = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>`;
-const ICON_PDF = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
-const ICON_COCKPIT = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>`;
+const ICON_DOC = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
 const ICON_MOON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 const ICON_SUN = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 
-function renderViewToggle() {
-  const isPDF = viewMode === "pdf";
-  return `<button class="view-toggle ${isPDF ? "pdf-mode" : "cockpit-mode"}" data-action="toggle-view">${isPDF ? ICON_COCKPIT : ICON_PDF} ${isPDF ? "PROG" : "NCL"}</button>`;
+// ─── Fleets & flight legs ───────────────────────────────────────────────────
+
+function getFleet(fleetId) {
+  return caderno.fleets.find(f => f.id === fleetId)
+    || caderno.fleets.find(f => f.id === caderno.defaultFleetId);
 }
 
-// ─── PDF document layout (faithful recreation of NCL AW 139 REV. 23) ────────
-// Each page mirrors the company PDF: two columns, fixed section order.
+const settingsFleet = () => getFleet(settings.fleetId);
+const flightFleet = () => getFleet(state.fleetId || settings.fleetId);
 
-const PDF_DOC_PAGES = [
-  {
-    num: "1/2",
-    cols: [
-      { phases: ["normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks"] },
-      { phases: ["normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration", "normal-taxing", "normal-before-take-off", "normal-after-take-off"] }
-    ]
-  },
-  {
-    num: "2/2",
-    cols: [
-      { phases: ["normal-cruise", "normal-before-descent", "normal-before-landing", "normal-final-approach", "normal-after-landing", "normal-engines-shut-down", "normal-after-rotor-stops"] },
-      { boxTitle: "OFFSHORE CHECK LIST", phases: ["offshore-before-descent", "offshore-before-landing", "offshore-traffic-pattern", "offshore-final-approach", "offshore-after-landing", "offshore-before-takeoff", "offshore-after-take-off"] }
-    ]
-  }
-];
+function clampLandings(n) {
+  const v = parseInt(n, 10);
+  return Math.min(MAX_LANDINGS, Math.max(1, isNaN(v) ? 1 : v));
+}
 
-// ─── Mission profiles ───────────────────────────────────────────────────────
+// The caderno has a single checklist per fleet (onshore and offshore items
+// are merged). The flight is split into one leg per landing: leg 1 starts at
+// PREFLIGHT, every following leg restarts at BEFORE TAKEOFF, and only the
+// last leg ends with SHUT DOWN.
+const DEPARTURE_PHASES = ["preflight", "before-start", "after-start", "before-taxi"];
+const LEG_PHASES = ["before-takeoff", "after-takeoff", "cruise", "descent", "landing", "after-landing"];
+const SHUTDOWN_PHASES = ["shut-down"];
 
-function buildMissionSteps(profileId, params = {}) {
-  const all = checklistData.phases;
-  const byId = id => all.find(p => p.id === id);
-  const step = (id, phaseId, label = null) => ({ stepId: id, phaseId, phase: byId(phaseId), label });
-
-  const DEP = [
-    "normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks",
-    "normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration",
-    "normal-taxing", "normal-before-take-off", "normal-after-take-off"
+function legPhaseIds(leg, landings) {
+  return [
+    ...(leg === 1 ? DEPARTURE_PHASES : []),
+    ...LEG_PHASES,
+    ...(leg === landings ? SHUTDOWN_PHASES : [])
   ];
-  const CRUISE = "normal-cruise";
-  const N_INTERM = [
-    "normal-before-descent", "normal-before-landing", "normal-final-approach", "normal-after-landing"
-  ];
-  const N_IDEP = ["normal-before-take-off", "normal-after-take-off"];
-  const N_ARR = [
-    "normal-before-descent", "normal-before-landing", "normal-final-approach",
-    "normal-after-landing", "normal-engines-shut-down", "normal-after-rotor-stops"
-  ];
-  const O_ARR = [
-    "offshore-before-descent", "offshore-before-landing", "offshore-traffic-pattern",
-    "offshore-final-approach", "offshore-after-landing"
-  ];
-  const O_DEP = ["offshore-before-takeoff", "offshore-after-take-off"];
+}
 
+function buildFlightSteps(fleetId, landings) {
+  const fleet = getFleet(fleetId);
+  const n = clampLandings(landings);
   const steps = [];
-
-  if (profileId === "normal") {
-    all.filter(p => p.categoryId === "normal").forEach((p, i) => steps.push(step(`n${i}`, p.id)));
-
-  } else if (profileId === "offshore") {
-    all.filter(p => p.categoryId === "offshore").forEach((p, i) => steps.push(step(`o${i}`, p.id)));
-
-  } else if (profileId === "normal_offshore") {
-    const legs = params.offshoreLegs || 1;
-    DEP.forEach((id, i) => steps.push(step(`no_d${i}`, id)));
-    for (let l = 0; l < legs; l++) {
-      const cLabel = legs === 1 ? "CRUISE — IDA" : `CRUISE — IDA ${l + 1}`;
-      steps.push(step(`no_ci${l}`, CRUISE, cLabel));
-      O_ARR.forEach((id, i) => steps.push(step(`no_oa${l}_${i}`, id)));
-      O_DEP.forEach((id, i) => steps.push(step(`no_od${l}_${i}`, id)));
-    }
-    steps.push(step(`no_cr`, CRUISE, "CRUISE — RETORNO"));
-    N_ARR.forEach((id, i) => steps.push(step(`no_a${i}`, id)));
-
-  } else if (profileId === "normal_stops") {
-    const stops = params.stops || 1;
-    DEP.forEach((id, i) => steps.push(step(`ns_d${i}`, id)));
-    for (let s = 0; s < stops; s++) {
-      const cLabel = stops === 1 ? "CRUISE" : `CRUISE — TRECHO ${s + 1}`;
-      steps.push(step(`ns_c${s}`, CRUISE, cLabel));
-      N_INTERM.forEach((id, i) => steps.push(step(`ns_ia${s}_${i}`, id)));
-      N_IDEP.forEach((id, i) => steps.push(step(`ns_id${s}_${i}`, id)));
-    }
-    steps.push(step(`ns_cr`, CRUISE, "CRUISE — RETORNO"));
-    N_ARR.forEach((id, i) => steps.push(step(`ns_a${i}`, id)));
-
-  } else if (profileId === "custom") {
-    const startup  = params.startup || "onshore";
-    const legList  = params.stops  || [];
-    const finalDst = params.final  || "onshore";
-
-    // ── Startup ──────────────────────────────────────────────────────
-    const COMMON_START = [
-      "normal-cockpit-checks", "normal-before-engine-start", "normal-system-checks",
-      "normal-first-engine-start", "normal-second-engine-start", "normal-flight-configuration"
-    ];
-    COMMON_START.forEach((id, i) => steps.push(step(`cs${i}`, id)));
-    if (startup === "onshore") {
-      steps.push(step("cs_tx", "normal-taxing"));
-      steps.push(step("cs_bt", "normal-before-take-off"));
-      steps.push(step("cs_at", "normal-after-take-off"));
-    } else {
-      // Offshore startup: sem táxi, usa before/after takeoff offshore
-      steps.push(step("cs_bt", "offshore-before-takeoff"));
-      steps.push(step("cs_at", "offshore-after-take-off"));
-    }
-
-    // ── Escalas intermediárias ────────────────────────────────────────
-    legList.forEach((leg, li) => {
-      const cLabel = legList.length === 1 ? "CRUISE — IDA" : `CRUISE — TRECHO ${li + 1}`;
-      steps.push(step(`cl${li}_c`, CRUISE, cLabel));
-      if (leg.type === "onshore") {
-        N_INTERM.forEach((id, i) => steps.push(step(`cl${li}_a${i}`, id)));
-        steps.push(step(`cl${li}_bt`, "normal-before-take-off"));
-        steps.push(step(`cl${li}_at`, "normal-after-take-off"));
-      } else {
-        O_ARR.forEach((id, i)  => steps.push(step(`cl${li}_a${i}`, id)));
-        O_DEP.forEach((id, i)  => steps.push(step(`cl${li}_d${i}`, id)));
-      }
+  for (let leg = 1; leg <= n; leg++) {
+    legPhaseIds(leg, n).forEach(phaseId => {
+      const phase = fleet.phases.find(p => p.id === phaseId);
+      if (phase) steps.push({ stepId: `${leg}:${phaseId}`, leg, phaseId, phase });
     });
-
-    // ── Pouso final + shutdown ────────────────────────────────────────
-    const finalCruiseLabel = legList.length > 0 ? "CRUISE — RETORNO" : "CRUISE";
-    steps.push(step("cf_c", CRUISE, finalCruiseLabel));
-    if (finalDst === "onshore") {
-      N_ARR.forEach((id, i) => steps.push(step(`cf_a${i}`, id)));
-    } else {
-      // Offshore final: aproximação offshore → shutdown normal
-      O_ARR.forEach((id, i) => steps.push(step(`cf_a${i}`, id)));
-      steps.push(step("cf_sd0", "normal-engines-shut-down"));
-      steps.push(step("cf_sd1", "normal-after-rotor-stops"));
-    }
   }
-
   return steps;
 }
 
 function getMissionSteps() {
-  if (!state.profileId) return [];
-  return buildMissionSteps(state.profileId, state.profileParams || {});
+  if (!state.fleetId) return [];
+  return buildFlightSteps(state.fleetId, state.landings);
 }
 
 function isStepAccessible(steps, stepIdx) {
@@ -211,51 +120,15 @@ function isStepAccessible(steps, stepIdx) {
   return true;
 }
 
-function getProfileLabelFor(profileId, params = {}) {
-  if (profileId === "normal") return "NORMAL CHECK LIST";
-  if (profileId === "offshore") return "OFFSHORE CHECK LIST";
-  if (profileId === "normal_offshore") {
-    const legs = params.offshoreLegs || 1;
-    return legs === 1 ? "NCL + OCL" : `NCL + OCL (${legs}× offshore)`;
-  }
-  if (profileId === "normal_stops") {
-    const stops = params.stops || 1;
-    return stops === 1 ? "NORMAL c/ PARADA" : `NORMAL c/ ${stops} PARADAS`;
-  }
-  if (profileId === "custom") {
-    const { startup = "onshore", stops = [], final: fin = "onshore" } = params;
-    const parts = [];
-    if (startup === "offshore") parts.push("partida OFF");
-    stops.forEach((s, i) => { if (s.type === "offshore") parts.push(`escala ${i + 1} OFF`); });
-    if (fin === "offshore") parts.push("pouso OFF");
-    return parts.length ? `NCL MISTO (${parts.join(" · ")})` : "NORMAL CHECK LIST";
-  }
-  return "CHECK LIST";
+const phaseHeader = phase => `${phase.title} (${phase.method})`;
+const landingsText = n => `${n} ${n === 1 ? "pouso" : "pousos"}`;
+
+function flightLabelFor(fleetId, landings) {
+  return `${getFleet(fleetId).name} • ${landingsText(clampLandings(landings))}`;
 }
 
 function getProfileLabel() {
-  return getProfileLabelFor(state.profileId, state.profileParams || {});
-}
-
-function getLogTypeLabel(entry) {
-  if (!entry.profileId) {
-    return entry.flightType === "offshore" ? "OCL" : "NCL";
-  }
-  if (entry.profileId === "offshore") return "OCL";
-  if (entry.profileId === "normal_offshore") {
-    const legs = entry.profileParams?.offshoreLegs || 1;
-    return legs > 1 ? `NCL+OCL ×${legs}` : "NCL+OCL";
-  }
-  if (entry.profileId === "normal_stops") {
-    const stops = entry.profileParams?.stops || 1;
-    return stops > 1 ? `NCL+${stops}P` : "NCL+PAR";
-  }
-  if (entry.profileId === "custom") {
-    const { startup = "onshore", stops = [], final: fin = "onshore" } = entry.profileParams || {};
-    const hasOff = startup === "offshore" || stops.some(s => s.type === "offshore") || fin === "offshore";
-    return hasOff ? "NCL MX" : "NCL";
-  }
-  return "NCL";
+  return flightLabelFor(state.fleetId, state.landings);
 }
 
 // ─── State helpers ──────────────────────────────────────────────────────────
@@ -284,7 +157,7 @@ function selectStep(stepId) {
   if (!isStepAccessible(steps, stepIdx)) return;
   const step = steps[stepIdx];
   currentView = "checklist";
-  lastAutoScrolledId = null;
+  overviewLeg = null;
   const active = getNextPendingItem(step.phase, state, stepId);
   persist({
     ...state,
@@ -294,19 +167,19 @@ function selectStep(stepId) {
   });
 }
 
-function handleSelectProfile(profileId, params = {}) {
-  legPicker = null;
-  flightBuilder = null;
+function handleStartFlight() {
+  const landings = clampLandings(landingsDraft);
+  const fleet = settingsFleet();
   const regInput = document.getElementById("reg-input");
   const registration = (regInput ? regInput.value.trim().toUpperCase() : settings.registration) || "";
   const remarksInput = document.getElementById("remarks-input");
   const remarks = remarksInput ? remarksInput.value.trim() : (state.flightRemarks || "");
 
-  const hasProgress = state.profileId &&
+  const hasProgress = state.fleetId && !state.completedAt &&
     Object.values(state.completed || {}).some(a => a.length > 0);
   if (hasProgress) {
     const ok = window.confirm(
-      `Iniciar ${getProfileLabelFor(profileId, params)}? O progresso atual será perdido.`
+      `Iniciar novo voo ${fleet.name} com ${landingsText(landings)}? O progresso atual será perdido.`
     );
     if (!ok) return;
   }
@@ -315,38 +188,49 @@ function handleSelectProfile(profileId, params = {}) {
   saveSettings(settings);
   showingInitial = false;
   currentView = "groups";
-  lastAutoScrolledId = null;
+  viewMode = "doc";
+  overviewLeg = null;
 
-  const steps = buildMissionSteps(profileId, params);
-  const first = steps[0];
+  const first = buildFlightSteps(fleet.id, landings)[0];
   persist({
-    profileId,
-    profileParams: params,
+    fleetId: fleet.id,
+    landings,
     flightRegistration: registration,
     flightRemarks: remarks,
     selectedStepId: first?.stepId || null,
     activeItemId: first?.phase.items[0]?.id || null,
     completed: {},
     skipped: {},
+    completedTimestamps: {},
     completedAt: null,
     lastUpdatedAt: null,
     flightSessionStartedAt: new Date().toISOString(),
-    flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null },
-    unitCodes: []
+    flightTimes: { acionamento: null, decolagens: [], pousos: [], corte: null }
   });
 }
 
-function handleHome() { showingInitial = true; legPicker = null; render(); }
+function handleHome() {
+  showingInitial = true;
+  if (state.landings) landingsDraft = state.landings;
+  render();
+}
 
 // ─── Flight times ────────────────────────────────────────────────────────────
 
-function handleMarkTime(marker) {
+// Take-off / landing times are stored per leg (index = leg − 1).
+function handleMarkTime(marker, legIdx) {
   const now = Date.now();
   const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
+  const setAt = list => {
+    const next = [...list];
+    if (Number.isInteger(legIdx) && legIdx >= 0) next[legIdx] = now;
+    else next.push(now);
+    return next;
+  };
   let next;
   if (marker === "acionamento") next = { ...ft, acionamento: now };
-  else if (marker === "decolagem") next = { ...ft, decolagens: [...ft.decolagens, now] };
-  else if (marker === "pouso")     next = { ...ft, pousos: [...ft.pousos, now] };
+  else if (marker === "decolagem") next = { ...ft, decolagens: setAt(ft.decolagens) };
+  else if (marker === "pouso")     next = { ...ft, pousos: setAt(ft.pousos) };
   else if (marker === "corte")     next = { ...ft, corte: now };
   else return;
   state = saveState({ ...state, flightTimes: next });
@@ -366,25 +250,14 @@ function fmtDuration(ms) {
   return h > 0 ? `${h}h${String(mm).padStart(2, "0")}` : `${mm}min`;
 }
 
-function renderTimingMarker(marker, label, recordedTs) {
+function renderTimingMarker(marker, label, recordedTs, legIdx = -1) {
   const done = recordedTs != null;
   return `
     <div class="timing-marker timing-${marker}${done ? " timing-done" : ""}">
-      <button class="timing-tap" data-action="mark-time" data-marker="${marker}">
+      <button class="timing-tap" data-action="mark-time" data-marker="${marker}" data-leg="${legIdx}">
         <span class="timing-tap-label">${label}</span>
         <span class="timing-tap-val">${done ? fmtHHMM(recordedTs) : "Registrar"}</span>
       </button>
-    </div>`;
-}
-
-function renderUnitInput(legIdx, value) {
-  return `
-    <div class="unit-row">
-      <span class="unit-row-lbl">INDICATIVO</span>
-      <input type="text" class="unit-input" data-action="unit-code" data-leg="${legIdx}"
-        value="${escapeHtml(value)}" placeholder="—"
-        maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false"
-        enterkeyhint="done">
     </div>`;
 }
 
@@ -392,7 +265,7 @@ function renderFlightTimesSection() {
   const ft = state.flightTimes;
   if (!ft) return "";
   const { acionamento, decolagens, pousos, corte } = ft;
-  if (!acionamento && !decolagens.length && !corte) return "";
+  if (!acionamento && !decolagens.some(Boolean) && !corte) return "";
 
   const nLegs = Math.max(decolagens.length, pousos.length);
   let flightMs = 0;
@@ -411,7 +284,7 @@ function renderFlightTimesSection() {
       </div>`;
   }
 
-  const lastPouso = pousos.length > 0 ? pousos[pousos.length - 1] : null;
+  const lastPouso = [...pousos].reverse().find(Boolean) ?? null;
   const totalStart = acionamento ?? (corte && lastPouso ? lastPouso : null);
   const totalEnd   = corte ?? (acionamento && lastPouso ? lastPouso : null);
   const totalMs    = totalStart && totalEnd ? totalEnd - totalStart : null;
@@ -439,7 +312,7 @@ function handleToggleNightMode() {
 }
 
 function handleShowGroups() { currentView = "groups"; viewMode = "cockpit"; render(); }
-function handleShowNCL()    { currentView = "groups"; viewMode = "pdf";     render(); }
+function handleShowDoc()    { currentView = "groups"; viewMode = "doc";     render(); }
 function handleContinueFlight() {
   showingInitial = false;
   currentView = state.selectedStepId ? "checklist" : "groups";
@@ -494,9 +367,8 @@ function handleCompleteFlight() {
   const log = loadFlightLog();
   log.unshift({
     id: stats.completedAt,
-    profileId: state.profileId,
-    profileParams: state.profileParams || {},
-    flightType: state.profileId === "offshore" ? "offshore" : "normal",
+    fleetId: state.fleetId,
+    landings: clampLandings(state.landings),
     registration: state.flightRegistration || settings.registration || "",
     remarks: state.flightRemarks || "",
     startedAt: stats.startedAt,
@@ -531,9 +403,8 @@ function handleSkipItem(id) {
 function handleResetPhase() {
   const step = selectedStep();
   if (!step) return;
-  const ok = window.confirm(`Resetar o grupo ${step.label || step.phase.title}?`);
+  const ok = window.confirm(`Resetar o grupo ${phaseHeader(step.phase)}?`);
   if (!ok) return;
-  lastAutoScrolledId = null;
   persist(resetPhase(step.phase, state, step.stepId));
 }
 
@@ -542,7 +413,7 @@ function handleResetAll() {
   if (!ok) return;
   showingInitial = true;
   currentView = "groups";
-  lastAutoScrolledId = null;
+  overviewLeg = null;
   state = resetAllState();
   render();
 }
@@ -556,10 +427,7 @@ function autoScrollToActiveItem() {
   const id = state.activeItemId;
   if (!id) return;
   requestAnimationFrame(() => {
-    const el = document.querySelector(`[data-item-id="${id}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "instant", block: "center" });
-    lastAutoScrolledId = id;
+    document.querySelector(`[data-item-id="${id}"]`)?.scrollIntoView({ behavior: "instant", block: "center" });
   });
 }
 
@@ -599,113 +467,379 @@ function handleNextGroup() {
   selectStep(next.stepId);
 }
 
-function getStatusLabel(s) {
-  return s === "completed" ? "DONE" : s === "active" ? "NEXT" : s === "skipped" ? "ATTN" : "PENDING";
-}
-
-// ─── PDF generation ────────────────────────────────────────────────────────
+// ─── Flight record (print / PDF) ────────────────────────────────────────────
 
 function generateFlightPDF(flightId) {
-  const log = loadFlightLog();
-  const entry = log.find(e => e.id === flightId);
+  const entry = loadFlightLog().find(e => e.id === flightId);
   if (!entry) return;
 
-  let steps;
-  if (entry.profileId) {
-    steps = buildMissionSteps(entry.profileId, entry.profileParams || {});
-  } else {
-    steps = checklistData.phases
-      .filter(p => p.categoryId === entry.flightType)
-      .map((p, i) => ({ stepId: `${entry.flightType[0]}${i}`, phaseId: p.id, phase: p, label: null }));
-  }
-
+  const fleet = getFleet(entry.fleetId);
+  const landings = clampLandings(entry.landings);
+  const steps = buildFlightSteps(fleet.id, landings);
   const doneMap = entry.completed || {};
   const skipMap = entry.skipped || {};
   const tsMap = entry.completedTimestamps || {};
-  const typeLabel = entry.profileId
-    ? getProfileLabelFor(entry.profileId, entry.profileParams || {})
-    : (entry.flightType === "offshore" ? "OFFSHORE CHECK LIST" : "NORMAL CHECK LIST");
 
   const fmtTime = iso => {
     if (!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
 
   const groupsHTML = steps.map(step => {
-    const items = step.phase.items.filter(i => i.required !== false);
+    const { phase } = step;
     const done = new Set(doneMap[step.stepId] || []);
     const skip = new Set(skipMap[step.stepId] || []);
     const stepTs = tsMap[step.stepId] || {};
-    const cnt = items.filter(i => done.has(i.id)).length;
-    const title = step.label ? `${step.phase.title} — ${step.label}` : step.phase.title;
-    const rows = items.map(item => {
-      const isDone = done.has(item.id), isSkip = skip.has(item.id);
-      const ic = isDone ? "✓" : (isSkip ? "⚠" : "○");
+    const cnt = phase.items.filter(i => done.has(i.id)).length;
+    const rows = phase.items.map((item, i) => {
+      const isDone = done.has(item.id), isSkip = !isDone && skip.has(item.id);
       const cl = isDone ? "done" : (isSkip ? "attn" : "pend");
-      const ts = isDone && stepTs[item.id] ? `<td class="ts">${fmtTime(stepTs[item.id])}</td>` : `<td class="ts"></td>`;
-      return `<tr class="${cl}"><td class="ic">${ic}</td><td class="ch">${item.challenge}</td><td class="rs">${item.response}</td>${ts}</tr>`;
+      const ic = isDone ? "✓" : (isSkip ? "⚠" : "");
+      const ts = isDone && stepTs[item.id] ? fmtTime(stepTs[item.id]) : "";
+      return `<tr class="z${i % 2} ${cl}"><td class="ch">${escapeHtml(item.challenge)}</td><td class="rs">${escapeHtml(item.response)}</td><td class="st">${ic}</td><td class="ts">${ts}</td></tr>`;
     }).join("");
-    return `<div class="grp"><div class="gh"><span>${title}</span><span>${cnt}/${items.length}</span></div><table><tbody>${rows}</tbody></table></div>`;
+    const legInfo = landings > 1 ? `Perna ${step.leg}/${landings} · ` : "";
+    return `<div class="grp">
+      <div class="cap">${legInfo}${cnt}/${phase.items.length} itens</div>
+      <table>
+        <colgroup><col class="c-ch"><col><col class="c-st"><col class="c-ts"></colgroup>
+        <thead>
+          <tr><th colspan="4" class="hdr">${escapeHtml(phaseHeader(phase))}</th></tr>
+          <tr><td colspan="4" class="trg">Gatilho: ${escapeHtml(phase.trigger)}</td></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="4" class="cmp">► ${escapeHtml(phase.complete)}</td></tr></tfoot>
+      </table>
+    </div>`;
   }).join("");
 
   const doneGroups = entry.doneGroups ?? entry.totalGroups;
   const doneItems  = entry.doneItems  ?? entry.totalItems;
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>AW139 ${typeLabel} — ${entry.registration || "—"} — ${formatDate(entry.completedAt)}</title>
+<title>${escapeHtml(fleet.name)} — ${escapeHtml(entry.registration || "—")} — ${formatDate(entry.completedAt)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000;background:#fff}
-.nop{padding:8px 15mm;background:#f0f0f0;border-bottom:1px solid #ccc;display:flex;gap:8px;align-items:center}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:Arial,Helvetica,sans-serif;font-size:8pt;color:#000;background:#fff}
+.nop{padding:8px 12mm;background:#f0f0f0;border-bottom:1px solid #ccc;display:flex;gap:8px;align-items:center}
 .nop button{padding:6px 14px;cursor:pointer;font-size:8.5pt;border:1px solid #888;background:#fff;border-radius:4px}
-.hdr{padding:10mm 15mm 7mm;border-bottom:2px solid #000}
-.htitle{font-size:15pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.hmeta{margin-top:6px;display:flex;flex-wrap:wrap;gap:16px;font-size:8.5pt;color:#333}
-.body{padding:6mm 15mm 12mm}
-.grp{margin:7mm 0 0;break-inside:avoid}
-.gh{display:flex;justify-content:space-between;padding:4px 7px;background:#e8e8e8;font-weight:700;font-size:8.5pt;text-transform:uppercase;border-bottom:1px solid #ccc}
-table{width:100%;border-collapse:collapse;font-size:8pt}
-td{padding:2.5px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-height:1.35}
-.ic{width:16px;text-align:center;font-weight:700}
-.ch{width:48%;font-weight:600}
-.rs{color:#555}
-.ts{width:52px;text-align:right;color:#888;font-size:7.5pt;white-space:nowrap}
-.done .ic{color:#007700}.attn .ic{color:#cc6600}.pend .ic{color:#bbb}
-.done .ts{color:#007700}
-.ftr{margin:10mm 15mm 0;padding-top:4mm;border-top:1px solid #ddd;font-size:7.5pt;color:#888;text-align:center}
-@page{margin:10mm 12mm;size:A4}
+.phdr{padding:6mm 12mm 0;text-align:right;color:#888;font-size:8pt}
+.hdr-block{padding:3mm 12mm 4mm;text-align:center}
+.htitle{font-size:16pt;font-weight:700;color:#1B365D}
+.hsub{font-size:11pt;font-style:italic;color:#444;margin-top:2pt}
+.hmeta{margin-top:6pt;display:flex;flex-wrap:wrap;justify-content:center;gap:4pt 14pt;font-size:8.5pt;color:#1F4E79}
+.fleet{padding:0 12mm;font-size:13pt;font-weight:700;color:#1B365D;margin:4pt 0 6pt}
+.body{padding:0 12mm 8mm;columns:2;column-gap:7mm;column-rule:1px solid #000}
+.grp{break-inside:avoid;margin-bottom:14pt}
+.cap{font-size:7pt;color:#888;text-align:right;margin-bottom:1pt}
+table{width:100%;border-collapse:collapse;table-layout:fixed;line-height:1.32}
+td,th{padding:1.25pt 1.5pt 1.25pt 2pt;vertical-align:top}
+.hdr{background:#1B365D;color:#fff;font-size:9.5pt;font-weight:700;text-align:center;padding:2pt 2.5pt}
+.trg{background:#D9E1F2;color:#1F4E79;font-style:italic;padding:1.5pt 2.5pt}
+.cmp{background:#D9E1F2;color:#1F4E79;font-weight:700;font-style:italic;padding:3.75pt 2.5pt}
+.z0 td{background:#fff}.z1 td{background:#C8C8C8}
+.c-ch{width:52%}.c-st{width:10pt}.c-ts{width:38pt}
+.ch{text-align:left}
+.rs{text-align:right}
+.st{text-align:center;font-weight:700}
+.ts{text-align:right;color:#666;font-size:7pt;white-space:nowrap}
+.done .st{color:#007700}
+.attn td{color:#b52a1a}
+.pend .st{color:#b52a1a}
+.pftr{padding:0 12mm 6mm;text-align:center;color:#888;font-size:8pt}
+@page{margin:8mm 0;size:A4}
 @media print{.nop{display:none!important}}
 </style></head><body>
 <div class="nop">
   <button onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
   <button onclick="window.close()">✕ Fechar</button>
 </div>
-<div class="hdr">
-  <div class="htitle">AW139 ${typeLabel}</div>
+<div class="phdr">${escapeHtml(caderno.pageHeader)}</div>
+<div class="hdr-block">
+  <div class="htitle">REGISTRO DE VOO — CHECKLISTS NORMAIS</div>
+  <div class="hsub">${escapeHtml(caderno.subtitle)}</div>
   <div class="hmeta">
-    <span><strong>Matrícula:</strong> ${entry.registration || "—"}</span>
+    <span><strong>Matrícula:</strong> ${escapeHtml(entry.registration || "—")}</span>
     <span><strong>Data:</strong> ${formatDate(entry.completedAt)}</span>
     <span><strong>Duração:</strong> ${formatDuration(entry.durationMs)}</span>
+    <span><strong>Pousos:</strong> ${landings}</span>
     ${entry.remarks ? `<span><strong>Obs.:</strong> ${escapeHtml(entry.remarks)}</span>` : ""}
     <span><strong>Grupos:</strong> ${doneGroups}/${entry.totalGroups}</span>
     <span><strong>Itens:</strong> ${doneItems}/${entry.totalItems}</span>
-    <span><strong>Rev.:</strong> ${checklistData.revision.sourceRevision} (${checklistData.revision.effectiveDate})</span>
+    <span><strong>Caderno:</strong> ${escapeHtml(caderno.version)}</span>
   </div>
 </div>
+<div class="fleet">${escapeHtml(fleet.heading)}</div>
 <div class="body">${groupsHTML}</div>
-<div class="ftr">${checklistData.revision.source} • Rev. ${checklistData.revision.sourceRevision} • ${checklistData.revision.sourceBasis} • Dataset: ${checklistData.revision.datasetVersion}</div>
+<div class="pftr">${escapeHtml(caderno.pageFooter)}${escapeHtml(caderno.source)}</div>
 </body></html>`;
 
   const win = window.open("", "_blank");
   if (win) { win.document.write(html); win.document.close(); }
 }
 
-// ─── Rendering ────────────────────────────────────────────────────────────
+// ─── Caderno rendering (visual reproduced from the .docx) ───────────────────
+// One table per checklist: navy title bar, light-blue "Gatilho" row, items in
+// alternating white / gray rows (challenge left, response right) and the
+// light-blue "► Checklist complete" row.
+
+function renderCadTable(phase, statusOf, sectionDone = false) {
+  const rows = phase.items.map((item, i) => {
+    const status = statusOf(item);
+    return `<div class="cad-row cad-z${i % 2} ${status}">
+      <span class="cad-ch">${escapeHtml(item.challenge)}</span>
+      <span class="cad-rs">${escapeHtml(item.response)}</span>
+    </div>`;
+  }).join("");
+  return `<div class="cad-table">
+    <div class="cad-hdr">${escapeHtml(phaseHeader(phase))}${sectionDone ? `<span class="cad-sec-check">✓</span>` : ""}</div>
+    <div class="cad-trigger">Gatilho: ${escapeHtml(phase.trigger)}</div>
+    ${rows}
+    <div class="cad-complete">► ${escapeHtml(phase.complete)}</div>
+  </div>`;
+}
+
+function renderCadTitleBlock() {
+  return `<div class="cad-title-block">
+    <div class="cad-title">${escapeHtml(caderno.title)}</div>
+    <div class="cad-subtitle">${escapeHtml(caderno.subtitle)}</div>
+    <div class="cad-notes">${caderno.notes.map(escapeHtml).join("<br>")}</div>
+  </div>`;
+}
+
+// Page geometry in em, with 1em = 8pt (the caderno body text size):
+// Letter 612 × 792pt, 0.5in margins, two columns 14.4pt apart with a
+// separator line, 8pt header/footer lines.
+const DOC = {
+  pageH: 99,
+  margin: 4.5,
+  headerH: 1.15,
+  colW: 32.85,
+  colGap: 1.8,
+  tableGap: 2.68,  // empty 11pt paragraph (+6pt after) below every table
+  titleGap: 3.18   // empty section-break paragraph after the title block
+};
+const DOC_BODY_H = DOC.pageH - 2 * (DOC.margin + DOC.headerH);
+
+// Two columns like the document when they fit at a legible size; on narrow
+// phones each sheet carries a single column of the same tables.
+function docLayout() {
+  // Pages are sized before they exist, so leave room for the scrollbar they
+  // bring on desktop browsers (touch devices use overlay scrollbars).
+  const scrollbar = window.matchMedia("(pointer: coarse)").matches ? 0 : 16;
+  const avail = Math.max(280, document.documentElement.clientWidth - 16 - scrollbar);
+  const twoColW = DOC.colW * 2 + DOC.colGap + DOC.margin * 2;
+  const oneColW = DOC.colW + DOC.margin * 2;
+  if (avail / twoColW >= 8.5) return { cols: 2, pageW: twoColW, fontPx: Math.min(14, avail / twoColW) };
+  return { cols: 1, pageW: oneColW, fontPx: Math.min(14, avail / oneColW) };
+}
+
+function measureHeights(htmlList, widthEm, fontPx) {
+  const box = document.createElement("div");
+  box.className = "cad-measure";
+  box.style.fontSize = `${fontPx}px`;
+  box.style.width = `${widthEm}em`;
+  box.innerHTML = htmlList.join("");
+  document.body.appendChild(box);
+  const heights = Array.from(box.children, el => el.getBoundingClientRect().height / fontPx);
+  box.remove();
+  return heights;
+}
+
+// Every row in the caderno is "keep with next", so Word never splits a
+// table: one that does not fit in what is left of a column starts the next.
+function paginate(heights, firstCap, cap, cols) {
+  const pages = [];
+  let cur;
+  const openPage = pageCap => {
+    cur = { cap: pageCap, col: 0, cols: Array.from({ length: cols }, () => ({ idx: [], used: 0 })) };
+    pages.push(cur);
+  };
+  openPage(firstCap);
+  heights.forEach((h, i) => {
+    let column = cur.cols[cur.col];
+    if (column.idx.length && column.used + DOC.tableGap + h > cur.cap) {
+      if (cur.col + 1 < cols) cur.col++;
+      else openPage(cap);
+      column = cur.cols[cur.col];
+    }
+    column.used += (column.idx.length ? DOC.tableGap : 0) + h;
+    column.idx.push(i);
+  });
+  return pages;
+}
+
+function currentOverviewLeg() {
+  const n = clampLandings(state.landings);
+  const leg = overviewLeg ?? selectedStep()?.leg ?? 1;
+  return Math.min(n, Math.max(1, leg));
+}
+
+function renderDocPage() {
+  const steps = getMissionSteps();
+  const fleet = flightFleet();
+  const n = clampLandings(state.landings);
+  const leg = currentOverviewLeg();
+  const legSteps = steps.filter(s => s.leg === leg);
+  const reg = state.flightRegistration || settings.registration;
+
+  const blocks = fleet.phases.map((phase, pi) => {
+    const step = legSteps.find(s => s.phaseId === phase.id);
+    const stepIdx = step ? steps.indexOf(step) : -1;
+    const isLocked = step && !isStepAccessible(steps, stepIdx);
+    const done = step && getPhaseProgress(phase, state, step.stepId).isComplete;
+    const statusOf = item => {
+      if (!step) return "";
+      const s = getItemStatus(phase, item, state, step.stepId);
+      return s === "active" ? "" : s;
+    };
+    const cls = [
+      "cad-sec",
+      !step ? "cad-off" : "",
+      isLocked ? "cad-locked" : "",
+      step && step.stepId === state.selectedStepId ? "cad-active" : ""
+    ].filter(Boolean).join(" ");
+    const interactive = step && !isLocked
+      ? ` data-action="select-step" data-step-id="${escapeHtml(step.stepId)}" role="button" tabindex="0"`
+      : "";
+    const heading = pi === 0 ? `<div class="cad-fleet-heading">${escapeHtml(fleet.heading)}</div>` : "";
+    return `<div class="cad-block">${heading}<div class="${cls}"${interactive}>${renderCadTable(phase, statusOf, done)}</div></div>`;
+  });
+
+  const { cols, pageW, fontPx } = docLayout();
+  lastDocWidth = document.documentElement.clientWidth;
+  const regionW = DOC.colW * cols + DOC.colGap * (cols - 1);
+  // The title block only exists on the first page of the caderno (first
+  // fleet); every other fleet starts a new page directly with its heading.
+  const titleHtml = fleet.id === caderno.fleets[0].id ? renderCadTitleBlock() : "";
+  const titleSpace = titleHtml ? measureHeights([titleHtml], regionW, fontPx)[0] + DOC.titleGap : 0;
+  const heights = measureHeights(blocks, DOC.colW, fontPx);
+  const pages = paginate(heights, DOC_BODY_H - titleSpace, DOC_BODY_H, cols);
+
+  const pagesHtml = pages.map((pg, pi) => {
+    const colsHtml = pg.cols.map((c, ci) =>
+      `${ci ? `<div class="cad-col-sep"></div>` : ""}<div class="cad-col">${c.idx.map(i => blocks[i]).join(`<div class="cad-gap"></div>`)}</div>`
+    ).join("");
+    return `
+      <div class="cad-sheet" style="font-size:${fontPx}px;width:${pageW}em;height:${DOC.pageH}em">
+        <div class="cad-page-header">${escapeHtml(caderno.pageHeader)}</div>
+        <div class="cad-page-body">
+          ${pi === 0 && titleHtml ? `${titleHtml}<div class="cad-title-gap"></div>` : ""}
+          <div class="cad-cols cad-cols-${cols}" style="height:${pg.cap}em">${colsHtml}</div>
+        </div>
+        <div class="cad-page-footer">${escapeHtml(caderno.pageFooter)}</div>
+      </div>`;
+  }).join("");
+
+  const legChips = n > 1 ? `
+    <div class="leg-chips">
+      <span class="leg-chips-lbl">Perna</span>
+      ${Array.from({ length: n }, (_, i) => {
+        const l = i + 1;
+        const done = steps.filter(s => s.leg === l).every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
+        return `<button class="leg-chip${done ? " done" : ""}${l === leg ? " cur" : ""}" data-action="overview-leg" data-leg="${l}">${l}</button>`;
+      }).join("")}
+    </div>` : "";
+
+  return `
+    <div class="pdf-view-page">
+      <div class="pdf-topbar">
+        <div class="pdf-topbar-info">
+          <div class="pdf-doc-kicker">Caderno ${escapeHtml(caderno.version)} • ${escapeHtml(fleet.heading)}</div>
+          <div class="pdf-doc-mission">${escapeHtml(getProfileLabel())}</div>
+          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}${n > 1 ? `Perna ${leg}/${n} • ` : ""}Toque num checklist para abrir</div>
+        </div>
+        ${legChips}
+      </div>
+      <div class="pdf-body cad-doc">
+        ${pagesHtml}
+      </div>
+      ${renderBottomBar()}
+    </div>
+  `;
+}
+
+function renderChecklistPage() {
+  const step = selectedStep();
+  if (!step) return `<div class="pdf-view-page"><div class="empty-state">Nenhuma checklist.</div></div>`;
+
+  const steps = getMissionSteps();
+  const fleet = flightFleet();
+  const n = clampLandings(state.landings);
+  const fi = steps.findIndex(s => s.stepId === step.stepId);
+  const progress = getPhaseProgress(step.phase, state, step.stepId);
+  const { phase, leg } = step;
+  const legIdx = leg - 1;
+  const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
+
+  const rows = phase.items.map((item, i) => {
+    const status = getItemStatus(phase, item, state, step.stepId);
+    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
+    return `<button class="cad-row cad-row-tap cad-z${i % 2} ${status}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
+      <span class="cad-ch">${escapeHtml(item.challenge)}</span>
+      <span class="cad-rs">${escapeHtml(item.response)}</span>
+      <span class="cad-sym">${sym}</span>
+    </button>`;
+  });
+
+  // Optional timing markers (Configurações → Marcação de tempos)
+  if (settings.timingEnabled) {
+    if (phase.id === "before-start")
+      rows.push(renderTimingMarker("acionamento", "ACIONAMENTO", ft.acionamento));
+    if (phase.id === "before-takeoff")
+      rows.push(renderTimingMarker("decolagem", "DECOLAGEM", ft.decolagens[legIdx] ?? null, legIdx));
+    if (phase.id === "after-landing")
+      rows.unshift(renderTimingMarker("pouso", "POUSO", ft.pousos[legIdx] ?? null, legIdx));
+    if (phase.id === "shut-down")
+      rows.push(renderTimingMarker("corte", "CORTE", ft.corte));
+  }
+
+  const completionBanner = progress.isComplete ? `
+    <div class="group-complete-banner">
+      <div class="gcb-inner">
+        <div class="gcb-check">✓</div>
+        <div class="gcb-text">
+          <div class="gcb-title">${escapeHtml(phase.title)} — CONCLUÍDO</div>
+          <div class="gcb-sub">${escapeHtml(phase.complete)}</div>
+        </div>
+        <button class="gcb-btn" data-action="nav-next">Próximo →</button>
+      </div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="pdf-view-page">
+      <div class="pdf-topbar pdf-topbar-detail">
+        <button class="pdfd-back-btn" data-action="nav-doc">← Caderno</button>
+        <div class="pdf-topbar-info">
+          <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(fleet.name)}${n > 1 ? ` • Perna ${leg}/${n}` : ""}</div>
+          <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
+          <div class="pdfd-detail-progbar"><div class="pdfd-detail-progfill" style="width:${progress.percent}%"></div></div>
+        </div>
+      </div>
+      <div class="pdf-body cad-detail" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
+        <div class="cad-detail-sheet">
+          <div class="cad-page-header">${escapeHtml(caderno.pageHeader)}</div>
+          <div class="cad-fleet-heading">${escapeHtml(fleet.heading)}</div>
+          <div class="cad-table">
+            <div class="cad-hdr">${escapeHtml(phaseHeader(phase))}</div>
+            <div class="cad-trigger">Gatilho: ${escapeHtml(phase.trigger)}</div>
+            ${rows.join("")}
+            <div class="cad-complete">► ${escapeHtml(phase.complete)}</div>
+          </div>
+          <div class="cad-page-footer">${escapeHtml(caderno.pageFooter)}</div>
+        </div>
+      </div>
+      ${completionBanner}
+      ${renderBottomBar()}
+    </div>
+  `;
+}
+
+// ─── App screens ──────────────────────────────────────────────────────────
 
 function renderBottomBar() {
-  const steps = getMissionSteps();
-  const completedGroups = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
   const isGroupsView = currentView === "groups";
   const onChecklist = currentView === "checklist";
   const step = onChecklist ? selectedStep() : null;
@@ -725,107 +859,67 @@ function renderBottomBar() {
         ${ICON_SEEK}
         <span class="bottom-label">Pendente</span>
       </button>
-      <button class="bottom-btn ${isGroupsView && viewMode === "cockpit" ? "bb-active" : ""}" data-action="nav-groups" title="Grupos PROG">
+      <button class="bottom-btn ${isGroupsView && viewMode === "cockpit" ? "bb-active" : ""}" data-action="nav-groups" title="Grupos">
         ${ICON_GRID}
         <span class="bottom-label">Grupos</span>
       </button>
-      <button class="bottom-btn ${isGroupsView && viewMode === "pdf" ? "bb-active" : ""}" data-action="nav-ncl" title="NCL — visualização documento">
-        ${ICON_PDF}
-        <span class="bottom-label">NCL</span>
+      <button class="bottom-btn ${isGroupsView && viewMode === "doc" ? "bb-active" : ""}" data-action="nav-doc" title="Caderno de checklists">
+        ${ICON_DOC}
+        <span class="bottom-label">Caderno</span>
       </button>
     </nav>
   `;
 }
 
-function renderLegButtons(profile, paramKey, max = 5) {
-  if (legPicker?.profile === profile) {
-    const n = legPicker.count;
-    const params = JSON.stringify({ [paramKey]: n });
-    return `
-      <div class="mission-legs-picker">
-        <button class="leg-stepper" data-action="leg-dec" data-profile="${profile}" ${n <= 1 ? "disabled" : ""}>−</button>
-        <span class="leg-stepper-val">${n}</span>
-        <button class="leg-stepper" data-action="leg-inc" data-profile="${profile}" ${n >= max ? "disabled" : ""}>+</button>
-        <button class="leg-btn leg-start" data-action="select-profile" data-profile="${profile}" data-params='${params}'>OK</button>
-      </div>
-    `;
-  }
-  const p1 = JSON.stringify({ [paramKey]: 1 });
-  const cls = profile === "normal_offshore" ? " offshore" : "";
-  return `
-    <div class="mission-legs-btns">
-      <button class="leg-btn${cls}" data-action="select-profile" data-profile="${profile}" data-params='${p1}'>1</button>
-      <button class="leg-btn${cls} leg-more" data-action="expand-legs" data-profile="${profile}">+</button>
-    </div>
-  `;
-}
-
-function renderFlightBuilder() {
-  const { startup, stops, final: fin } = flightBuilder;
-
-  const tog = (action, val, current, extra = "") => {
-    const active = current === val;
-    const cls = active
-      ? (val === "offshore" ? "fb-tog fb-tog-amber" : "fb-tog fb-tog-blue")
-      : "fb-tog";
-    const label = val === "offshore" ? "Offshore" : "Onshore";
-    return `<button class="${cls}" data-action="${action}" data-val="${val}"${extra}>${label}</button>`;
+// Summary of how the landings split the flight into legs
+function renderLegPlan(n) {
+  const fleet = settingsFleet();
+  const range = (leg, label) => {
+    const ids = legPhaseIds(leg, n);
+    const first = fleet.phases.find(p => p.id === ids[0]);
+    const last = fleet.phases.find(p => p.id === ids[ids.length - 1]);
+    return `<div class="leg-plan-row">
+      <span class="leg-plan-num">${label}</span>
+      <span class="leg-plan-range">${escapeHtml(first.title)} → ${escapeHtml(last.title)}</span>
+      <span class="leg-plan-count">${ids.length} grupos</span>
+    </div>`;
   };
-
-  const stopRows = stops.map((s, i) => `
-    <div class="fb-stop-row">
-      <span class="fb-stop-num">Escala ${i + 1}</span>
-      <div class="fb-toggles">
-        ${tog("fb-stop-type", "onshore", s.type, ` data-idx="${i}"`)}
-        ${tog("fb-stop-type", "offshore", s.type, ` data-idx="${i}"`)}
-      </div>
-      <button class="fb-del-btn" data-action="fb-del-stop" data-idx="${i}">×</button>
-    </div>
-  `).join("");
-
-  return `
-    <div class="fb-section">
-      <span class="fb-label">Acionamento</span>
-      <div class="fb-toggles">${tog("fb-startup", "onshore", startup)}${tog("fb-startup", "offshore", startup)}</div>
-    </div>
-    <div class="fb-section">
-      <span class="fb-label">Escalas intermediárias</span>
-      ${stopRows}
-      <button class="fb-add-btn" data-action="fb-add-stop">+ Escala</button>
-    </div>
-    <div class="fb-section">
-      <span class="fb-label">Pouso final · Shutdown</span>
-      <div class="fb-toggles">${tog("fb-final", "onshore", fin)}${tog("fb-final", "offshore", fin)}</div>
-    </div>
-    <button class="fb-start-btn" data-action="fb-start">Iniciar →</button>
-  `;
+  if (n === 1) return range(1, "Perna única");
+  const rows = [range(1, "Perna 1")];
+  if (n === 3) rows.push(range(2, "Perna 2"));
+  if (n > 3) rows.push(range(2, `Pernas 2–${n - 1}`));
+  rows.push(range(n, `Perna ${n}`));
+  return rows.join("");
 }
 
 function renderInitialScreen() {
-  const hasFlight = !!state.profileId && !state.completedAt;
+  const hasFlight = !!state.fleetId && !state.completedAt;
+  const fleet = settingsFleet();
   const log = loadFlightLog();
+  const n = clampLandings(landingsDraft);
+  const totalGroups = buildFlightSteps(fleet.id, n).length;
 
-  const historyRows = log.slice(0, 10).map(entry => {
-    const typeLabel = getLogTypeLabel(entry);
-    const isOff = entry.profileId === "offshore" || entry.profileId === "normal_offshore";
-    return `
+  const historyRows = log.slice(0, 10).map(entry => `
       <div class="history-entry">
-        <span class="history-type ${isOff ? "offshore" : ""}">${typeLabel}</span>
+        <span class="history-type">${escapeHtml(getFleet(entry.fleetId).name)}</span>
         <span class="history-reg">${escapeHtml(entry.registration || "—")}</span>
-        <span class="history-date">${formatDate(entry.completedAt)}</span>
+        <span class="history-date">${formatDate(entry.completedAt)} • ${landingsText(clampLandings(entry.landings))}</span>
         <span class="history-dur">${formatDuration(entry.durationMs)}</span>
         <button class="history-pdf" data-action="export-pdf" data-flight-id="${escapeHtml(entry.id)}">PDF</button>
       </div>
-    `;
-  }).join("");
+    `).join("");
+
+  const fleetHint = hasFlight && state.fleetId !== fleet.id
+    ? `<div class="settings-hint">Voo em andamento continua na frota ${escapeHtml(getFleet(state.fleetId).name)}. ${escapeHtml(fleet.name)} vale a partir do próximo voo.</div>`
+    : "";
 
   return `
     <div class="initial-screen">
       <div class="initial-inner">
         <div class="initial-toprow">
           <div class="initial-brand">
-            <div class="brand-title">${escapeHtml(checklistData.title)}</div>
-            <div class="initial-sub">Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${escapeHtml(checklistData.revision.source)}</div>
+            <div class="brand-title">Checklist ${escapeHtml(fleet.name)}</div>
+            <div class="initial-sub">Caderno unificado ${escapeHtml(caderno.version)} • OMNI Táxi Aéreo</div>
           </div>
           <div class="toprow-actions">
             <button class="night-toggle-btn" data-action="toggle-night" title="${settings.nightMode ? "Modo dia" : "Modo noite"}">
@@ -837,6 +931,14 @@ function renderInitialScreen() {
 
         ${settingsOpen ? `
         <div class="settings-panel">
+          <div class="settings-row">
+            <label class="settings-row-label" for="fleet-select">Modelo de aeronave</label>
+            <select id="fleet-select" class="fleet-select" data-action="select-fleet">
+              ${caderno.fleets.map(f => `<option value="${escapeHtml(f.id)}"${f.id === fleet.id ? " selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
+            </select>
+          </div>
+          ${fleetHint}
+          <div class="settings-divider"></div>
           <div class="settings-row">
             <span class="settings-row-label">Barreiras de avanço</span>
             <button class="sw-toggle${settings.barriersDisabled ? "" : " sw-on"}" data-action="toggle-barriers" role="switch" aria-checked="${!settings.barriersDisabled}">
@@ -876,37 +978,25 @@ function renderInitialScreen() {
 
         ${hasFlight ? `
           <button class="continue-flight-btn" data-action="continue-flight">
-            ← Continuar ${escapeHtml(getProfileLabel())}
+            ← Continuar voo ${escapeHtml(getProfileLabel())}
           </button>
         ` : ""}
 
         <div class="initial-section-label">Iniciar voo</div>
-        <div class="mission-grid">
-
-          <button class="mission-btn" data-action="select-profile" data-profile="normal">
-            <span class="mission-btn-label">Normal</span>
-            <span class="mission-btn-desc">Partida e pouso onshore</span>
-          </button>
-
-          <div class="mission-btn mission-multi offshore">
-            <span class="mission-btn-label">Normal + Offshore</span>
-            <div class="mission-legs">
-              <span class="mission-legs-label">Pousos offshore</span>
-              ${renderLegButtons("normal_offshore", "offshoreLegs", 5)}
+        <div class="start-card">
+          <div class="start-row">
+            <div>
+              <div class="start-label">Quantidade de pousos</div>
+              <div class="start-sub">${escapeHtml(fleet.heading)} • ${totalGroups} grupos</div>
+            </div>
+            <div class="landings-stepper">
+              <button class="leg-stepper" data-action="landings-dec" ${n <= 1 ? "disabled" : ""} aria-label="Menos pousos">−</button>
+              <span class="leg-stepper-val">${n}</span>
+              <button class="leg-stepper" data-action="landings-inc" ${n >= MAX_LANDINGS ? "disabled" : ""} aria-label="Mais pousos">+</button>
             </div>
           </div>
-
-          <div class="mission-btn mission-builder${flightBuilder ? " mission-builder-open" : ""}">
-            <div class="fb-header">
-              <span class="mission-btn-label">Configurar voo</span>
-              ${flightBuilder
-                ? `<button class="fb-close-btn" data-action="fb-close">✕</button>`
-                : `<button class="fb-open-btn" data-action="fb-open">Configurar →</button>`
-              }
-            </div>
-            ${flightBuilder ? renderFlightBuilder() : ""}
-          </div>
-
+          <div class="leg-plan">${renderLegPlan(n)}</div>
+          <button class="start-btn" data-action="start-flight">Iniciar voo →</button>
         </div>
 
         ${settings.timingEnabled ? renderFlightTimesSection() : ""}
@@ -924,77 +1014,41 @@ function renderInitialScreen() {
   `;
 }
 
-// ─── Group section helpers ──────────────────────────────────────────────────
-
-function buildGroupSections() {
-  const steps = getMissionSteps();
-  const sections = [];
-  steps.forEach((step, idx) => {
-    const cat = step.phase.categoryId;
-    if (!sections.length || sections[sections.length - 1].cat !== cat) {
-      sections.push({ cat, items: [] });
-    }
-    sections[sections.length - 1].items.push({ step, idx });
-  });
-  return sections;
-}
-
-function getGroupSectionLabel(sections, sec, si) {
-  if (sections.length <= 1) return null;
-  const offCount = sections.filter(s => s.cat === "offshore").length;
-  if (sec.cat === "offshore") {
-    if (offCount === 1) return "OFFSHORE";
-    const n = sections.slice(0, si + 1).filter(s => s.cat === "offshore").length;
-    return `OFFSHORE — PERNA ${n}`;
-  }
-  if (si === 0) return "SAÍDA NORMAL";
-  if (si === sections.length - 1) return "RETORNO NORMAL";
-  return "NORMAL";
-}
-
-// ─── Cockpit groups page ────────────────────────────────────────────────────
+// ─── Cockpit groups page (cards) ────────────────────────────────────────────
 
 function renderGroupsPage() {
-  if (viewMode === "pdf") return renderGroupsPagePDF();
+  if (viewMode === "doc") return renderDocPage();
 
   const steps = getMissionSteps();
-  const sections = buildGroupSections();
+  const n = clampLandings(state.landings);
   const doneCount = steps.filter(s => getPhaseProgress(s.phase, state, s.stepId).isComplete).length;
-  const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
 
-  let cardsHtml = "";
-  sections.forEach((sec, si) => {
-    const secLabel = getGroupSectionLabel(sections, sec, si);
-    if (secLabel) {
-      const cls = sec.cat === "offshore" ? "section-offshore" : "section-normal";
-      cardsHtml += `<div class="groups-section-label ${cls}">${secLabel}</div>`;
-    }
-    sec.items.forEach(({ step, idx }) => {
-      const progress = getPhaseProgress(step.phase, state, step.stepId);
-      const isActive = step.stepId === state.selectedStepId;
-      const isLocked = !isStepAccessible(steps, idx);
-      const title = step.label || step.phase.title;
-      const offCls = sec.cat === "offshore" ? " offshore-card" : "";
-      cardsHtml += `
-        <button class="group-card${progress.isComplete ? " complete" : ""}${isActive ? " active-group" : ""}${isLocked ? " locked" : ""}${offCls}"
-          data-action="select-step" data-step-id="${escapeHtml(step.stepId)}"${isLocked ? ' disabled aria-disabled="true"' : ""}>
-          <div class="group-card-num">${isLocked ? "🔒" : idx + 1}</div>
-          <div class="group-card-title">${escapeHtml(title)}</div>
-          <div class="group-card-footer">
-            <span class="group-card-progress">${progress.done}/${progress.total}</span>
-            <div class="group-card-bar"><div class="group-card-fill" style="width:${progress.percent}%"></div></div>
-          </div>
-        </button>
-      `;
-    });
-  });
+  const cardsHtml = steps.map((step, idx) => {
+    const progress = getPhaseProgress(step.phase, state, step.stepId);
+    const isActive = step.stepId === state.selectedStepId;
+    const isLocked = !isStepAccessible(steps, idx);
+    const legLabel = n > 1 && (idx === 0 || steps[idx - 1].leg !== step.leg)
+      ? `<div class="groups-section-label section-normal">PERNA ${step.leg}/${n}</div>`
+      : "";
+    return `${legLabel}
+      <button class="group-card${progress.isComplete ? " complete" : ""}${isActive ? " active-group" : ""}${isLocked ? " locked" : ""}"
+        data-action="select-step" data-step-id="${escapeHtml(step.stepId)}"${isLocked ? ' disabled aria-disabled="true"' : ""}>
+        <div class="group-card-num">${isLocked ? "🔒" : idx + 1}</div>
+        <div class="group-card-title">${escapeHtml(step.phase.title)}</div>
+        <div class="group-card-footer">
+          <span class="group-card-progress">${progress.done}/${progress.total}</span>
+          <div class="group-card-bar"><div class="group-card-fill" style="width:${progress.percent}%"></div></div>
+        </div>
+      </button>
+    `;
+  }).join("");
 
   return `
     <div class="groups-page">
       <header class="groups-header">
         <div>
-          <div class="brand-title">${escapeHtml(label)}</div>
+          <div class="brand-title">${escapeHtml(getProfileLabel())}</div>
           <div class="groups-meta">
             ${reg ? `<span class="groups-reg">${escapeHtml(reg)}</span> • ` : ""}
             ${doneCount}/${steps.length} grupos concluídos
@@ -1004,117 +1058,6 @@ function renderGroupsPage() {
       <div class="groups-grid">${cardsHtml}</div>
       ${renderBottomBar()}
     </div>
-  `;
-}
-
-function renderTags(item) {
-  if (!item.tags?.length && !item.callout) return "";
-  const tags = [...(item.callout ? ["●"] : []), ...(item.tags || [])];
-  return `<span class="tag-row">${tags.map(t => `<span class="item-tag">${escapeHtml(t)}</span>`).join("")}</span>`;
-}
-
-function renderChecklist() {
-  const step = selectedStep();
-  if (!step) return `<div class="empty-state">Nenhuma checklist carregada.</div>`;
-
-  const steps = getMissionSteps();
-  const fi = steps.findIndex(s => s.stepId === step.stepId);
-  const progress = getPhaseProgress(step.phase, state, step.stepId);
-  const nextPending = getNextPendingItem(step.phase, state, step.stepId);
-  const title = step.label || step.phase.title;
-  const groupKicker = `Grupo ${fi + 1}/${steps.length} • ${escapeHtml(step.phase.categoryTitle)} • PDF p.${escapeHtml(String(step.phase.pdfPage))}`;
-  const resumeText = nextPending
-    ? `Próximo item pendente: <strong>${escapeHtml(nextPending.challenge)}</strong> — ${escapeHtml(nextPending.response)}`
-    : `Grupo completo. Conferir visualmente e avançar para o próximo grupo.`;
-
-  const rows = step.phase.items.map((item, i) => {
-    const status = getItemStatus(step.phase, item, state, step.stepId);
-    const symbol = status === "completed" ? "✓" : String(i + 1).padStart(2, "0");
-    const note = item.note ? `<span class="item-note">${escapeHtml(item.note)}</span>` : "";
-    return `
-      <button class="check-row ${status}" data-action="toggle-item" data-item-id="${escapeHtml(item.id)}">
-        <span class="check-index">${escapeHtml(symbol)}</span>
-        <span class="check-main">
-          <span class="challenge">${escapeHtml(item.challenge)}</span>
-          <span class="response">${escapeHtml(item.response)}</span>
-          ${renderTags(item)}
-          ${note}
-        </span>
-        <span class="status-chip">${getStatusLabel(status)}</span>
-      </button>
-    `;
-  }).join("");
-
-  return `
-    <div class="card checklist-card">
-      <div class="card-header sticky-header">
-        <div class="checklist-header-main">
-          <div>
-            <div class="page-kicker">${groupKicker}</div>
-            <h2 class="card-title">${escapeHtml(title)}</h2>
-          </div>
-          <div class="progress-block">
-            <div class="progress-count">${progress.done}/${progress.total}</div>
-            <div class="progress-label">Itens</div>
-          </div>
-        </div>
-        <div class="progress-bar" aria-label="Progresso da checklist">
-          <div class="progress-fill" style="width:${progress.percent}%"></div>
-        </div>
-      </div>
-      <div class="checklist-items">
-        ${checklistData.contentStatus !== "APPROVED" ? `<div class="warning-banner">CHECKLIST DATASET: ${escapeHtml(checklistData.contentStatus)} — REV. ${escapeHtml(checklistData.revision.sourceRevision)}. CONFERIR ANTES DE USO OPERACIONAL.</div>` : ""}
-        <div class="resume-banner ${progress.isComplete ? "complete" : ""}">${resumeText}</div>
-        ${rows}
-        <div class="checklist-end-spacer"></div>
-      </div>
-    </div>
-  `;
-}
-
-function renderChecklistPage() {
-  return renderChecklistPagePDF(); // detail is always PDF-faithful
-
-  const statusClass = checklistData.contentStatus === "APPROVED" ? "ok" : "draft";
-  const reg = state.flightRegistration || settings.registration;
-  const label = getProfileLabel();
-  const step = selectedStep();
-  const progress = step ? getPhaseProgress(step.phase, state, step.stepId) : null;
-  const groupTitle = step ? (step.label || step.phase.title) : "";
-
-  const completionBanner = progress?.isComplete ? `
-    <div class="group-complete-banner">
-      <div class="gcb-inner">
-        <div class="gcb-check">✓</div>
-        <div class="gcb-text">
-          <div class="gcb-title">${escapeHtml(groupTitle)} — CONCLUÍDO</div>
-          <div class="gcb-sub">Avançar para o próximo grupo?</div>
-        </div>
-        <button class="gcb-btn" data-action="nav-next">Próximo →</button>
-      </div>
-    </div>
-  ` : "";
-
-  return `
-    <main class="app-shell checklist-view">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-title">${escapeHtml(checklistData.title)}</div>
-          <div class="brand-subtitle">
-            ${reg ? `${escapeHtml(reg)} • ` : ""}${escapeHtml(label)}
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${renderViewToggle()}
-          <div class="badge ${statusClass}">${escapeHtml(checklistData.contentStatus)}</div>
-        </div>
-      </header>
-      <div class="checklist-wrapper">
-        ${renderChecklist()}
-      </div>
-      ${completionBanner}
-      ${renderBottomBar()}
-    </main>
   `;
 }
 
@@ -1129,24 +1072,19 @@ function renderCompletion() {
   }, 0);
   const durationMs = state.flightSessionStartedAt && state.completedAt
     ? new Date(state.completedAt) - new Date(state.flightSessionStartedAt) : 0;
-  const label = getProfileLabel();
   const reg = state.flightRegistration || settings.registration;
   const log = loadFlightLog();
   const currentEntry = log[0];
 
-  const logRows = log.slice(0, 6).map((entry, i) => {
-    const typeLabel = getLogTypeLabel(entry);
-    const isOff = entry.profileId === "offshore" || entry.profileId === "normal_offshore";
-    return `
-      <div class="log-entry ${i === 0 ? "current-entry" : ""} ${isOff ? "offshore-entry" : ""}">
-        <span class="log-type">${typeLabel}</span>
+  const logRows = log.slice(0, 6).map((entry, i) => `
+      <div class="log-entry ${i === 0 ? "current-entry" : ""}">
+        <span class="log-type">${escapeHtml(getFleet(entry.fleetId).name)}</span>
         <span class="log-date">${formatDate(entry.completedAt)}</span>
         <span class="log-duration">${formatDuration(entry.durationMs)}</span>
         <span class="log-items">${entry.doneItems ?? entry.totalItems}/${entry.totalItems} itens</span>
         <button class="log-pdf-btn" data-action="export-pdf" data-flight-id="${escapeHtml(entry.id)}">PDF</button>
       </div>
-    `;
-  }).join("");
+    `).join("");
 
   return `
     <div class="completion-screen">
@@ -1154,7 +1092,7 @@ function renderCompletion() {
         <div class="completion-icon">✓</div>
         <h1 class="completion-title">VOO CONCLUÍDO</h1>
         <div class="completion-meta">
-          ${reg ? `<strong>${escapeHtml(reg)}</strong> • ` : ""}${escapeHtml(label)} • Rev. ${escapeHtml(checklistData.revision.sourceRevision)} • ${formatDate(state.completedAt)}
+          ${reg ? `<strong>${escapeHtml(reg)}</strong> • ` : ""}${escapeHtml(getProfileLabel())} • Caderno ${escapeHtml(caderno.version)} • ${formatDate(state.completedAt)}
           ${state.flightRemarks ? `<br><span class="completion-remarks">${escapeHtml(state.flightRemarks)}</span>` : ""}
         </div>
         <div class="stats-grid">
@@ -1187,268 +1125,15 @@ function renderCompletion() {
   `;
 }
 
-// ─── PDF view render functions ───────────────────────────────────────────────
-
-function renderGroupsPagePDF() {
-  const steps = getMissionSteps();
-  const label = getProfileLabel();
-  const reg = state.flightRegistration || settings.registration;
-  const rev = checklistData.revision;
-
-  // Group mission steps by phase (multi-leg missions repeat phases)
-  const stepsByPhase = {};
-  steps.forEach(step => {
-    (stepsByPhase[step.phaseId] = stepsByPhase[step.phaseId] || []).push(step);
-  });
-
-  // For a phase with several legs, the "current" leg is the first incomplete one
-  const currentStepFor = phaseSteps => {
-    const pending = phaseSteps.find(s => !getPhaseProgress(s.phase, state, s.stepId).isComplete);
-    return pending || phaseSteps[phaseSteps.length - 1];
-  };
-
-  const renderItem = (phase, item, stepId) => {
-    const status = stepId ? getItemStatus(phase, item, state, stepId) : "pending";
-    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
-    const bullet = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
-
-    // Highlighted rows reproduced from the company PDF
-    if (item.highlight === "yellow") {
-      const text = item.response
-        ? `${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.`
-        : `${escapeHtml(item.challenge)}.`;
-      return `<div class="pdfd-item pdfd-yellowblock ${status}">
-        <span>${text}</span>
-        <span class="pdfd-state-sym">${sym}</span>
-      </div>`;
-    }
-
-    const greenDeck = (item.tags || []).includes("GREEN DECK");
-    const resp = greenDeck
-      ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
-      : escapeHtml(item.response);
-    return `<div class="pdfd-item ${status}">
-      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}</span>
-      <span class="pdfd-dots"></span>
-      <span class="pdfd-resp">${resp}</span>
-      <span class="pdfd-state-sym">${sym}</span>
-    </div>`;
-  };
-
-  const renderSection = (phaseId, inBox) => {
-    const phase = checklistData.phases.find(p => p.id === phaseId);
-    if (!phase) return "";
-
-    const phaseSteps = stepsByPhase[phaseId] || [];
-    const inMission = phaseSteps.length > 0;
-    const current = inMission ? currentStepFor(phaseSteps) : null;
-    const allDone = inMission && phaseSteps.every(s => getPhaseProgress(s.phase, state, s.stepId).isComplete);
-    const isActive = inMission && phaseSteps.some(s => s.stepId === state.selectedStepId);
-
-    const titleHtml = escapeHtml(phase.title);
-
-    const legChips = phaseSteps.length > 1 ? `<span class="pdfd-legs">${phaseSteps.map((s, i) => {
-      const done = getPhaseProgress(s.phase, state, s.stepId).isComplete;
-      const cur = s.stepId === current.stepId;
-      return `<button class="pdfd-leg-chip${done ? " done" : ""}${cur ? " cur" : ""}" data-action="select-step" data-step-id="${escapeHtml(s.stepId)}" title="${escapeHtml(s.label || phase.title)}">${i + 1}</button>`;
-    }).join("")}</span>` : "";
-
-    const currentIdx = current ? steps.findIndex(s => s.stepId === current.stepId) : -1;
-    const isLocked = inMission && currentIdx >= 0 && !isStepAccessible(steps, currentIdx);
-
-    const stateChip = allDone ? `<span class="pdfd-sec-check">✓</span>` : "";
-    const hdrCls = inBox ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
-
-    const cls = [
-      "pdfd-sec",
-      !inMission ? "pdfd-off" : "",
-      isLocked ? "pdfd-locked" : "",
-      allDone ? "pdfd-done" : "",
-      isActive ? "pdfd-active" : ""
-    ].filter(Boolean).join(" ");
-
-    const interactive = inMission && !isLocked ? ` data-action="select-step" data-step-id="${escapeHtml(current.stepId)}" role="button" tabindex="0"` : "";
-
-    return `<div class="${cls}"${interactive}>
-      <div class="${hdrCls}">${titleHtml}${stateChip}${legChips}</div>
-      ${phase.items.map(item => renderItem(phase, item, current ? current.stepId : null)).join("")}
-    </div>`;
-  };
-
-  const renderCol = col => {
-    const sections = col.phases.map(id => renderSection(id, !!col.boxTitle)).join("");
-    return col.boxTitle
-      ? `<div class="pdfd-col"><div class="pdfd-offshore-box"><div class="pdfd-box-title">${escapeHtml(col.boxTitle)}</div>${sections}</div></div>`
-      : `<div class="pdfd-col">${sections}</div>`;
-  };
-
-  const pagesHtml = PDF_DOC_PAGES.map(page => `
-    <div class="pdfd-page">
-      <div class="pdfd-header">
-        <div class="pdfd-h-logo"><img src="./assets/omni-logo.png" alt="OMNI Táxi Aéreo"></div>
-        <div class="pdfd-h-title">${escapeHtml(rev.sourceDocumentTitle)}</div>
-        <div class="pdfd-h-cell"><span class="pdfd-h-navy">ÁREA:</span><span class="pdfd-h-navy">${escapeHtml(rev.sourceArea)}</span></div>
-        <div class="pdfd-h-cell"><span class="pdfd-h-navy">PÁGINA</span><span>${escapeHtml(page.num)}</span></div>
-      </div>
-      <div class="pdfd-cols">${page.cols.map(renderCol).join("")}</div>
-      <div class="pdfd-footer">
-        <div class="pdfd-f-cell">REVISÃO: <span class="pdfd-f-num">${escapeHtml(rev.sourceRevision)}</span></div>
-        <div class="pdfd-f-cell">DATA: ${escapeHtml(rev.effectiveDate)}</div>
-        <div class="pdfd-f-cell pdfd-f-wide">${escapeHtml(rev.sourceBasis)}</div>
-      </div>
-    </div>
-  `).join("");
-
-  return `
-    <div class="pdf-view-page">
-      <div class="pdf-topbar">
-        <div class="pdf-topbar-info">
-          <div class="pdf-doc-kicker">AW139 • Rev. ${escapeHtml(rev.sourceRevision)}</div>
-          <div class="pdf-doc-mission">${escapeHtml(label)}</div>
-          <div class="pdf-doc-kicker">${reg ? `${escapeHtml(reg)} • ` : ""}Toque numa seção para abrir</div>
-        </div>
-      </div>
-      <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + 20px)">
-        ${pagesHtml}
-      </div>
-      ${renderBottomBar()}
-    </div>
-  `;
-}
-
-function renderChecklistPagePDF() {
-  const step = selectedStep();
-  if (!step) return `<div class="pdf-view-page"><div class="empty-state">Nenhuma checklist.</div></div>`;
-
-  const steps = getMissionSteps();
-  const fi = steps.findIndex(s => s.stepId === step.stepId);
-  const progress = getPhaseProgress(step.phase, state, step.stepId);
-  const title = step.label || step.phase.title;
-  const rev = checklistData.revision;
-  const phase = step.phase;
-
-  const titleHtml = escapeHtml(title);
-  const hdrCls = phase.categoryId === "offshore" ? "pdfd-sub-hdr" : "pdfd-sec-hdr";
-
-  // Timing context
-  const ft = state.flightTimes || { acionamento: null, decolagens: [], pousos: [], corte: null };
-  const phaseId = phase.id;
-  const isBeforeTakeoff = ["normal-before-take-off", "offshore-before-takeoff"].includes(phaseId);
-  const isAfterLanding  = ["normal-after-landing",   "offshore-after-landing"].includes(phaseId);
-  const decoIdx = isBeforeTakeoff
-    ? steps.slice(0, fi + 1).filter(s => ["normal-before-take-off", "offshore-before-takeoff"].includes(s.phase.id)).length - 1
-    : -1;
-  const pousoIdx = isAfterLanding
-    ? steps.slice(0, fi + 1).filter(s => ["normal-after-landing", "offshore-after-landing"].includes(s.phase.id)).length - 1
-    : -1;
-
-  // Unit code (indicativo da unidade marítima) — one per offshore leg.
-  // Traffic pattern leg N and final approach leg N share the same index.
-  const unitLegIdx = ["offshore-traffic-pattern", "offshore-final-approach"].includes(phaseId)
-    ? steps.slice(0, fi + 1).filter(s => s.phase.id === phaseId).length - 1
-    : -1;
-  const unitCode = unitLegIdx >= 0 ? ((state.unitCodes || [])[unitLegIdx] || "") : "";
-
-  const buildItemHtml = item => {
-    const status = getItemStatus(phase, item, state, step.stepId);
-    const sym = status === "completed" ? "✓" : status === "skipped" ? "⚠" : "";
-    const btn = `data-action="toggle-item" data-item-id="${escapeHtml(item.id)}"`;
-
-    if (item.highlight === "yellow") {
-      const text = item.response
-        ? `${escapeHtml(item.challenge)}. ${escapeHtml(item.response)}.`
-        : `${escapeHtml(item.challenge)}.`;
-      return `<button class="pdfd-item pdfd-yellowblock pdfd-item-tap ${status}" ${btn}>
-        <span>${text}</span>
-        <span class="pdfd-state-sym">${sym}</span>
-      </button>`;
-    }
-    const bullet  = item.callout ? `<span class="pdfd-bullet">●</span>` : "";
-    const greenDeck = (item.tags || []).includes("GREEN DECK");
-    const resp = greenDeck
-      ? `<span class="pdfd-hl-green">${escapeHtml(item.response)}</span>`
-      : escapeHtml(item.response);
-    const unitChip = item.unitDisplay && unitCode
-      ? ` <span class="unit-chip">${escapeHtml(unitCode)}</span>`
-      : "";
-    return `<button class="pdfd-item pdfd-item-tap ${status}" ${btn}>
-      <span class="pdfd-name">${bullet}${escapeHtml(item.challenge)}${unitChip}</span>
-      <span class="pdfd-dots"></span>
-      <span class="pdfd-resp">${resp}</span>
-      <span class="pdfd-state-sym">${sym}</span>
-    </button>`;
-  };
-
-  const pousoPrefix = (settings.timingEnabled && isAfterLanding)
-    ? renderTimingMarker("pouso", "POUSO", ft.pousos[pousoIdx] ?? null)
-    : "";
-
-  const itemRows = [
-    pousoPrefix,
-    ...phase.items.map((item, idx) => {
-      let row = buildItemHtml(item);
-      if (item.unitInput) row += renderUnitInput(unitLegIdx, unitCode);
-      if (!settings.timingEnabled) return row;
-      const isLast = idx === phase.items.length - 1;
-      if (phaseId === "normal-first-engine-start" && item.id === "nfes-003")
-        return row + renderTimingMarker("acionamento", "ACIONAMENTO", ft.acionamento);
-      if (phaseId === "normal-engines-shut-down" && item.id === "nesd-010")
-        return row + renderTimingMarker("corte", "CORTE", ft.corte);
-      if (isBeforeTakeoff && isLast)
-        return row + renderTimingMarker("decolagem", "DECOLAGEM", ft.decolagens[decoIdx] ?? null);
-      return row;
-    })
-  ].join("");
-
-  const completionBanner = progress.isComplete ? `
-    <div class="group-complete-banner">
-      <div class="gcb-inner">
-        <div class="gcb-check">✓</div>
-        <div class="gcb-text">
-          <div class="gcb-title">${escapeHtml(title)} — CONCLUÍDO</div>
-          <div class="gcb-sub">Avançar para o próximo grupo?</div>
-        </div>
-        <button class="gcb-btn" data-action="nav-next">Próximo →</button>
-      </div>
-    </div>
-  ` : "";
-
-  return `
-    <div class="pdf-view-page">
-      <div class="pdf-topbar pdf-topbar-detail">
-        <button class="pdfd-back-btn" data-action="nav-ncl">← NCL</button>
-        <div class="pdf-topbar-info">
-          <div class="pdf-doc-kicker">${fi + 1}/${steps.length} • ${escapeHtml(phase.categoryTitle)}</div>
-          <div class="pdfd-detail-prog">${progress.done}/${progress.total} itens${progress.isComplete ? " ✓" : ""}</div>
-          <div class="pdfd-detail-progbar"><div class="pdfd-detail-progfill" style="width:${progress.percent}%"></div></div>
-        </div>
-      </div>
-      <div class="pdf-body" style="padding-bottom:calc(var(--bar-h) + ${progress.isComplete ? "88px" : "20px"})">
-        <div class="pdfd-cutout">
-          <div class="pdfd-cutout-header">
-            <img src="./assets/omni-logo.png" alt="OMNI" class="pdfd-cutout-logo">
-            <span class="pdfd-cutout-doctitle">${escapeHtml(rev.sourceDocumentTitle)}</span>
-            <span class="pdfd-cutout-page">Pág. ${checklistData.phases.find(p => p.id === phase.id)?.pdfPage || "?"}</span>
-          </div>
-          <div class="pdfd-sec pdfd-cutout-sec">
-            <div class="${hdrCls}">${titleHtml}</div>
-            ${itemRows}
-          </div>
-          <div class="pdfd-cutout-footer">
-            REVISÃO: ${escapeHtml(rev.sourceRevision)} &nbsp;|&nbsp; ${escapeHtml(rev.effectiveDate)} &nbsp;|&nbsp; ${escapeHtml(rev.sourceBasis)}
-          </div>
-        </div>
-      </div>
-      ${completionBanner}
-      ${renderBottomBar()}
-    </div>
-  `;
-}
-
 // ─── Main render ─────────────────────────────────────────────────────────────
 
+function isDocOverview() {
+  return !!state.fleetId && !showingInitial && !state.completedAt &&
+    currentView === "groups" && viewMode === "doc";
+}
+
 function render() {
-  if (!state.profileId || showingInitial) {
+  if (!state.fleetId || showingInitial) {
     app.innerHTML = renderInitialScreen();
     bindEvents();
     return;
@@ -1473,35 +1158,10 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-action='select-profile']").forEach(btn => {
+  document.querySelectorAll("[data-action='overview-leg']").forEach(btn => {
     btn.addEventListener("click", () => {
-      const profileId = btn.dataset.profile;
-      const params = btn.dataset.params ? JSON.parse(btn.dataset.params) : {};
-      handleSelectProfile(profileId, params);
-    });
-  });
-
-  document.querySelectorAll("[data-action='expand-legs']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      legPicker = { profile: btn.dataset.profile, count: 2 };
-      app.innerHTML = renderInitialScreen();
-      bindEvents();
-    });
-  });
-
-  document.querySelectorAll("[data-action='leg-dec']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (legPicker) legPicker = { ...legPicker, count: Math.max(1, legPicker.count - 1) };
-      app.innerHTML = renderInitialScreen();
-      bindEvents();
-    });
-  });
-
-  document.querySelectorAll("[data-action='leg-inc']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (legPicker) legPicker = { ...legPicker, count: Math.min(legPicker.profile === "normal_stops" ? 4 : 5, legPicker.count + 1) };
-      app.innerHTML = renderInitialScreen();
-      bindEvents();
+      overviewLeg = parseInt(btn.dataset.leg, 10);
+      render();
     });
   });
 
@@ -1557,73 +1217,47 @@ function bindEvents() {
   document.querySelectorAll("[data-action='nav-groups']").forEach(btn =>
     btn.addEventListener("click", handleShowGroups)
   );
-  document.querySelectorAll("[data-action='nav-ncl']").forEach(btn =>
-    btn.addEventListener("click", handleShowNCL)
+  document.querySelectorAll("[data-action='nav-doc']").forEach(btn =>
+    btn.addEventListener("click", handleShowDoc)
   );
   document.querySelector("[data-action='nav-next']")?.addEventListener("click", handleNextFromBar);
   document.querySelector("[data-action='continue-flight']")?.addEventListener("click", handleContinueFlight);
   document.querySelector("[data-action='review-checklist']")?.addEventListener("click", handleReviewChecklist);
   document.querySelector("[data-action='reset-all']")?.addEventListener("click", handleResetAll);
   document.querySelector("[data-action='toggle-night']")?.addEventListener("click", handleToggleNightMode);
+  document.querySelector("[data-action='start-flight']")?.addEventListener("click", handleStartFlight);
+
+  const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
+
   document.querySelector("[data-action='toggle-settings']")?.addEventListener("click", () => {
     settingsOpen = !settingsOpen;
-    app.innerHTML = renderInitialScreen();
-    bindEvents();
+    reRenderInitial();
+  });
+  document.querySelector("[data-action='select-fleet']")?.addEventListener("change", e => {
+    settings = { ...settings, fleetId: e.target.value };
+    saveSettings(settings);
+    reRenderInitial();
   });
   document.querySelector("[data-action='toggle-barriers']")?.addEventListener("click", () => {
     settings = { ...settings, barriersDisabled: !settings.barriersDisabled };
     saveSettings(settings);
-    app.innerHTML = renderInitialScreen();
-    bindEvents();
+    reRenderInitial();
   });
   document.querySelector("[data-action='toggle-timing']")?.addEventListener("click", () => {
     settings = { ...settings, timingEnabled: !settings.timingEnabled };
     saveSettings(settings);
-    app.innerHTML = renderInitialScreen();
-    bindEvents();
+    reRenderInitial();
+  });
+  document.querySelector("[data-action='landings-dec']")?.addEventListener("click", () => {
+    landingsDraft = clampLandings(landingsDraft - 1);
+    reRenderInitial();
+  });
+  document.querySelector("[data-action='landings-inc']")?.addEventListener("click", () => {
+    landingsDraft = clampLandings(landingsDraft + 1);
+    reRenderInitial();
   });
   // Note: mark-time clicks are handled by a single delegated listener on `app`
   // (see bottom of file) so they work reliably across checklist re-renders.
-  const reRenderInitial = () => { app.innerHTML = renderInitialScreen(); bindEvents(); };
-
-  document.querySelector("[data-action='fb-open']")?.addEventListener("click", () => {
-    flightBuilder = { startup: "onshore", stops: [], final: "onshore" };
-    reRenderInitial();
-  });
-  document.querySelector("[data-action='fb-close']")?.addEventListener("click", () => {
-    flightBuilder = null; reRenderInitial();
-  });
-  document.querySelectorAll("[data-action='fb-startup']").forEach(btn =>
-    btn.addEventListener("click", () => { if (flightBuilder) flightBuilder = { ...flightBuilder, startup: btn.dataset.val }; reRenderInitial(); })
-  );
-  document.querySelectorAll("[data-action='fb-final']").forEach(btn =>
-    btn.addEventListener("click", () => { if (flightBuilder) flightBuilder = { ...flightBuilder, final: btn.dataset.val }; reRenderInitial(); })
-  );
-  document.querySelector("[data-action='fb-add-stop']")?.addEventListener("click", () => {
-    if (flightBuilder) flightBuilder = { ...flightBuilder, stops: [...flightBuilder.stops, { type: "onshore" }] };
-    reRenderInitial();
-  });
-  document.querySelectorAll("[data-action='fb-stop-type']").forEach(btn =>
-    btn.addEventListener("click", () => {
-      if (flightBuilder) {
-        const idx = parseInt(btn.dataset.idx);
-        flightBuilder = { ...flightBuilder, stops: flightBuilder.stops.map((s, i) => i === idx ? { type: btn.dataset.val } : s) };
-      }
-      reRenderInitial();
-    })
-  );
-  document.querySelectorAll("[data-action='fb-del-stop']").forEach(btn =>
-    btn.addEventListener("click", () => {
-      if (flightBuilder) {
-        const idx = parseInt(btn.dataset.idx);
-        flightBuilder = { ...flightBuilder, stops: flightBuilder.stops.filter((_, i) => i !== idx) };
-      }
-      reRenderInitial();
-    })
-  );
-  document.querySelector("[data-action='fb-start']")?.addEventListener("click", () => {
-    if (flightBuilder) handleSelectProfile("custom", { ...flightBuilder });
-  });
 }
 
 if ("serviceWorker" in navigator) {
@@ -1636,19 +1270,17 @@ if ("serviceWorker" in navigator) {
 // Global delegation for mark-time — works even when checklist re-renders
 app.addEventListener("click", e => {
   const btn = e.target.closest("[data-action='mark-time']");
-  if (btn) handleMarkTime(btn.dataset.marker);
+  if (btn) handleMarkTime(btn.dataset.marker, parseInt(btn.dataset.leg, 10));
 });
 
-// Unit code typing — save without re-render so the keyboard keeps focus;
-// the FINAL APPROACH chip picks the value up on its next render.
-app.addEventListener("input", e => {
-  const inp = e.target.closest("input[data-action='unit-code']");
-  if (!inp) return;
-  const leg = parseInt(inp.dataset.leg);
-  if (isNaN(leg) || leg < 0) return;
-  const codes = [...(state.unitCodes || [])];
-  codes[leg] = inp.value.toUpperCase().trim();
-  state = saveState({ ...state, unitCodes: codes });
+// The caderno pages are laid out for the current width — redo the
+// pagination when it changes (rotation, split view).
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (isDocOverview() && document.documentElement.clientWidth !== lastDocWidth) render();
+  }, 150);
 });
 
 render();

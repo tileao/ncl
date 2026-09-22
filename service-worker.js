@@ -1,16 +1,15 @@
-const CACHE_NAME = "aw139-checklist-v2.1-rev24-b43";
+const CACHE_NAME = "omni-checklist-v3-caderno-v7-b1";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./src/app.js",
   "./src/styles.css",
-  "./src/data/checklist-data.js",
+  "./src/data/fleets.js",
   "./src/checklist/storage.js",
   "./src/checklist/engine.js",
   "./assets/icon-192.svg",
-  "./assets/icon-512.svg",
-  "./assets/omni-logo.png"
+  "./assets/icon-512.svg"
 ];
 
 self.addEventListener("install", event => {
