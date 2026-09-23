@@ -59,7 +59,8 @@ const defaultSettings = {
   registration: "",
   nightMode: false,
   barriersDisabled: true,
-  timingEnabled: false
+  timingEnabled: false,
+  rowColors: true // colored rows + strikethrough for checked / not-accomplished items
 };
 
 export function loadSettings() {

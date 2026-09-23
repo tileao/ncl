@@ -44,6 +44,10 @@ O script valida a estrutura de cada tabela (título, gatilho, itens, linha de
     fora da tabela — ✓ cumprido e ⚠ não cumprido à direita, ▶ próximo item à
     esquerda; na visão Caderno, barra âmbar ao lado do grupo aberto e ✓ ao lado
     do título dos grupos concluídos.
+  - **Cores nos itens marcados** (Configurações, ligado por padrão): item
+    cumprido em verde com texto riscado, não cumprido em vermelho, item atual
+    em âmbar — sempre mantendo o zebrado. Desligado, a tabela fica exatamente
+    como impressa; as marcas na margem aparecem nos dois modos.
   - **Não cumprido é automático:** um item sem marcação vira ⚠ assim que algum
     item abaixo dele no mesmo grupo é marcado. O ▶ fica no item logo após o
     último marcado.
@@ -69,7 +73,8 @@ Abrir `http://localhost:8080`.
 
 ## Como usar
 
-- ⚙ → **Modelo de aeronave**: escolher a frota.
+- ⚙ → **Modelo de aeronave**: escolher a frota. **Cores nos itens marcados**
+  liga/desliga o destaque colorido das linhas.
 - Informar matrícula, observações e a **quantidade de pousos**; tocar em
   **Iniciar voo**.
 - Toque em uma linha para marcar como cumprida; toque de novo para desmarcar.

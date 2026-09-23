@@ -13,6 +13,7 @@ const app = document.querySelector("#app");
 let state = loadState();
 let settings = loadSettings();
 if (settings.nightMode) document.body.classList.add('night');
+if (settings.rowColors) document.body.classList.add('row-colors');
 let currentView = "groups"; // "groups" | "checklist"
 let viewMode = "doc";       // "doc" (caderno) | "cockpit" (cards)
 let showingInitial = false;
@@ -956,6 +957,13 @@ function renderInitialScreen() {
               <span class="sw-thumb"></span>
             </button>
           </div>
+          <div class="settings-divider"></div>
+          <div class="settings-row">
+            <span class="settings-row-label">Cores nos itens marcados</span>
+            <button class="sw-toggle${settings.rowColors ? " sw-on" : ""}" data-action="toggle-row-colors" role="switch" aria-checked="${settings.rowColors}">
+              <span class="sw-thumb"></span>
+            </button>
+          </div>
         </div>
         ` : ""}
 
@@ -1211,6 +1219,12 @@ function bindEvents() {
   });
   document.querySelector("[data-action='toggle-timing']")?.addEventListener("click", () => {
     settings = { ...settings, timingEnabled: !settings.timingEnabled };
+    saveSettings(settings);
+    reRenderInitial();
+  });
+  document.querySelector("[data-action='toggle-row-colors']")?.addEventListener("click", () => {
+    settings = { ...settings, rowColors: !settings.rowColors };
+    document.body.classList.toggle("row-colors", settings.rowColors);
     saveSettings(settings);
     reRenderInitial();
   });
