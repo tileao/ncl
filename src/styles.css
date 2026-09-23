@@ -492,10 +492,6 @@ button {
   cursor: not-allowed;
 }
 
-.bottom-btn.bb-seek {
-  color: var(--amber);
-}
-
 .bottom-btn.bb-active {
   color: var(--blue);
   background: rgba(89, 167, 255, 0.10);

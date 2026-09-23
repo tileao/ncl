@@ -44,6 +44,9 @@ O script valida a estrutura de cada tabela (título, gatilho, itens, linha de
     fora da tabela — ✓ cumprido e ⚠ não cumprido à direita, ▶ próximo item à
     esquerda; na visão Caderno, barra âmbar ao lado do grupo aberto e ✓ ao lado
     do título dos grupos concluídos.
+  - **Não cumprido é automático:** um item sem marcação vira ⚠ assim que algum
+    item abaixo dele no mesmo grupo é marcado. O ▶ fica no item logo após o
+    último marcado.
 - Relatório de voo (PDF) no mesmo estilo de tabela, com perna, status e
   horário de cada item.
 - Marcação de tempos por perna: ACIONAMENTO (fim do BEFORE START), DECOLAGEM
@@ -70,10 +73,12 @@ Abrir `http://localhost:8080`.
 - Informar matrícula, observações e a **quantidade de pousos**; tocar em
   **Iniciar voo**.
 - Toque em uma linha para marcar como cumprida; toque de novo para desmarcar.
-- Arraste a linha para a esquerda para marcar ATENÇÃO / NÃO CUMPRIDO.
+- Pular um item e marcar o de baixo deixa o item pulado como ⚠ não cumprido;
+  marcá-lo depois remove o ⚠.
 - Com o grupo completo, **Próximo →** avança para o grupo seguinte.
-- Barra inferior: Início, Reset do grupo, Próximo pendente, Grupos (cartões)
-  e Caderno (visão do documento).
+- Barra inferior: Início, Reset do grupo, **Atual** (volta ao grupo em
+  andamento — o último com itens marcados, ou o seguinte se já estiver
+  completo), Grupos (cartões) e Caderno (visão do documento).
 
 ## Checklist de validação antes de uso operacional
 
